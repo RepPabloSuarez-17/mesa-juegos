@@ -1,0 +1,51 @@
+:root {
+  --wood: #5a3a22; --wood2: #7a5233; --paper: #f6ecd6; --ink: #2b1d12; --sea: #2a7fb0; --accent: #e8a33d;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: system-ui, "Segoe UI", sans-serif; color: var(--ink); background: #1e3a4c; }
+body { display: flex; }
+
+#sidebar { width: 250px; background: linear-gradient(180deg, var(--wood), #3d2615); color: var(--paper); display: flex; flex-direction: column; transition: margin-left .25s; flex-shrink: 0; }
+#sidebar.closed { margin-left: -250px; }
+.brand { padding: 18px 20px; font-size: 22px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ffffff22; cursor: pointer; }
+#gamelist { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: auto; }
+.game { background: #ffffff10; border: 1px solid #ffffff18; color: inherit; text-align: left; padding: 12px 14px; border-radius: 10px; font-size: 16px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+.game:hover:not(:disabled) { background: #ffffff22; }
+.game.active { background: var(--accent); color: var(--ink); font-weight: 700; }
+.game:disabled { opacity: .45; cursor: default; }
+.game small { margin-left: auto; font-size: 11px; opacity: .8; }
+.foot { padding: 12px 16px; font-size: 12px; opacity: .6; }
+#toggle { position: fixed; top: 12px; left: 12px; z-index: 5; background: var(--wood); color: var(--paper); border: 0; border-radius: 8px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; display: none; }
+#sidebar.closed ~ #toggle { display: block; }
+
+#main { flex: 1; overflow: auto; position: relative; background: radial-gradient(circle at 30% 20%, #3d94c4, var(--sea) 60%, #1b587d); }
+.card { background: var(--paper); border-radius: 16px; padding: 28px; max-width: 480px; margin: 8vh auto; box-shadow: 0 10px 30px #0006; }
+.card h1 { margin-top: 0; }
+.card p { line-height: 1.5; }
+.hint { font-size: 13px; opacity: .7; }
+input { font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 2px solid #c9b48b; background: #fffaf0; width: 100%; margin: 6px 0; }
+button.btn { background: var(--wood2); color: var(--paper); border: 0; padding: 11px 18px; border-radius: 10px; font-size: 16px; cursor: pointer; font-weight: 600; }
+button.btn:hover { filter: brightness(1.15); }
+button.btn.alt { background: var(--accent); color: var(--ink); }
+button.btn:disabled { opacity: .4; cursor: default; }
+.row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+.row > input { flex: 1; }
+.code { font-size: 44px; letter-spacing: 10px; font-weight: 800; text-align: center; background: #fffaf0; border-radius: 12px; padding: 8px; margin: 12px 0; }
+.plist { list-style: none; padding: 0; margin: 12px 0; }
+.plist li { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 17px; }
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0006; display: inline-block; flex-shrink: 0; }
+
+#game { display: flex; height: 100%; }
+#boardwrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; min-width: 0; }
+#boardwrap svg { width: 100%; height: 100%; max-height: 96vh; filter: drop-shadow(0 8px 14px #0005); }
+#panel { width: 270px; background: var(--paper); margin: 12px 12px 12px 0; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 20px #0005; }
+.pl { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; }
+.pl.turn { background: #e8a33d55; font-weight: 700; }
+.dice { display: flex; gap: 12px; justify-content: center; margin: 8px 0; min-height: 64px; }
+.die { width: 60px; height: 60px; background: #fff; border-radius: 12px; display: grid; place-items: center; font-size: 38px; font-weight: 800; box-shadow: 0 3px 0 #0003, inset 0 0 0 2px #d9cbaa; animation: roll .55s ease-out; }
+@keyframes roll { 0% { transform: rotate(-420deg) scale(.3); opacity: 0; } 70% { transform: rotate(12deg) scale(1.1); } 100% { transform: none; opacity: 1; } }
+.hex { stroke: #3d2615; stroke-width: 3; transition: filter .15s; }
+.hex:hover { filter: brightness(1.12); }
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #b0302a; color: #fff; padding: 10px 18px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 10; }
+#toast.show { opacity: 1; }
+@media (max-width: 800px) { #game { flex-direction: column; } #panel { width: auto; margin: 0 12px 12px; } }
