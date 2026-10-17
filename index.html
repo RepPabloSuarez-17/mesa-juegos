@@ -10,15 +10,20 @@
 <aside id="sidebar">
   <div class="brand"><span>🎲</span><b>Mesa</b></div>
   <nav id="gamelist"></nav>
-  <div class="foot">Añade juegos en <code>games.js</code></div>
+  <div class="langbox"><span id="langlabel"></span><div id="langbtns"></div></div>
+  <div class="foot" id="foot"></div>
 </aside>
 <button id="toggle" aria-label="Menú">☰</button>
 <main id="main"></main>
 <div id="toast"></div>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="i18n.js"></script>
 <script src="games.js"></script>
 <script src="catan-board.js"></script>
+<script src="catan-engine.js"></script>
+<script src="catan-simple.js"></script>
 <script src="room.js"></script>
+<script src="catan-ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
