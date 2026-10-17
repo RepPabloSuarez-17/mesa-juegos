@@ -384,7 +384,7 @@
       let saved = []; try { saved = JSON.parse(localStorage.getItem('mesa-locnames') || '[]'); } catch (e) {}
       const drawNames = () => {
         const n = +$('#nloc').value, cur = Array.from(document.querySelectorAll('#locnames input')).map((i) => i.value);
-        $('#locnames').innerHTML = Array.from({ length: n }, (_, i) => `<div class="locrow"><span class="dot" style="background:${MesaRoom.COLORS[i]}"></span><input maxlength="20" placeholder="${T('lobby.local.p', { n: i + 1 })}" value="${esc(cur[i] !== undefined ? cur[i] : (saved[i] || ''))}"></div>`).join('');
+        $('#locnames').innerHTML = Array.from({ length: n }, (_, i) => `<div class="locrow"><span class="dot" style="background:${(MesaRoom.COLORS || ["#d8402f","#3a78d6","#f0a02a","#ece6d6","#3fa361","#9b59b6"])[i]}"></span><input maxlength="20" placeholder="${T('lobby.local.p', { n: i + 1 })}" value="${esc(cur[i] !== undefined ? cur[i] : (saved[i] || ''))}"></div>`).join('');
       };
       drawNames();
       $('#nloc').onchange = drawNames;
