@@ -454,3 +454,5 @@ label.chk input { width: auto; margin-top: 3px; }
 .topbtns button.micon { background: #b3261a66; border-color: #ff8a6c; }
 .vhelp ul { margin: 6px 0; padding-left: 18px; font-size: 14px; line-height: 1.55; }
 .vhelp li { margin-bottom: 3px; }
+
+.locrow input.bad { border-color: #c0392b; box-shadow: 0 0 0 2px rgba(192,57,43,.35); }

@@ -59,8 +59,10 @@
       else if ((g.phase === 'main' || g.phase === 'special') && ui.mode) spots = { kind: ui.mode, ids: L[ui.mode] || [] };
       else if (g.phase === 'robber') spots = { kind: 'robber', ids: L.robber || [] };
     }
-    const collect = ui.api.local || g.auto || g.phase === 'setup' ? [] : (g.pendTiles || []);
-    ui.b3.draw({ g, colors: room.players.map((p) => p.color), spots, collect });
+    const collect = g.auto || g.phase === 'setup' ? [] : (g.pendTiles || []);
+    if (spots) spots.ids = spots.ids.slice().sort((a, b) => a - b);
+    ui.spots = spots;
+    ui.b3.draw({ g, colors: room.players.map((p) => p.color), spots, collect, labels: voice.on });
   }
 
   // ---------- paneles ----------
@@ -85,6 +87,17 @@
 <div class="pstats"><span title="${T('cards')}">${ic('card', 16)}${pp.res ? Object.values(pp.res).reduce((a, b) => a + b, 0) : pp.resN}</span><span title="${T('devc')}">${ic('dev', 16)}${pp.devN}</span><span title="${T('knights')}">${ic('knight', 16)}${pp.knights}</span><span title="${T('roadlen')}">${ic('road', 16)}${pp.len}</span></div>${bd ? `<div class="badges">${bd}</div>` : ''}</div>
 <div class="pvp"><b>${vp}</b><small>${T('vp')}</small></div></div>`;
     }).join('') + `<div class="bankbox"><h4>${T('bank')}</h4><div class="bk">${RES.map((r) => `<span title="${T('res.' + r)}">${ic(r, 18)}<b>${g.bank[r]}</b></span>`).join('')}<span title="${T('deck')}">${ic('dev', 18)}<b>${g.deckN}</b></span></div>${g.ext ? `<p class="extnote">${T('ext.on')}</p>` : ''}</div>`;
+  }
+
+  // Privacidad en pantalla compartida: las cartas están tapadas hasta que el jugador del turno las destapa
+  function renderPrivacy(g) {
+    const bt = $('#cg-bottom'), eye = $('#cg-eye');
+    const on = !!(ui.api.local && ui.api.privacy);
+    if (ui.eyeFor !== g.me) { ui.eyeFor = g.me; ui.reveal = false; }
+    const veil = on && !ui.reveal;
+    bt.classList.toggle('veiled', veil);
+    eye.style.display = on ? '' : 'none';
+    eye.textContent = veil ? '👁 ' + T('ui.reveal') + ' — ' + nameOf(g.me) : '🙈 ' + T('ui.hide');
   }
 
   function renderHand(g) {
@@ -307,7 +320,7 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
       const give = RES.some((r) => d.give[r] > 0), want = RES.some((r) => d.want[r] > 0);
       body = (my ? '' : `<p class="sub">${T('tr.only')}</p>`) + row('give', T('tr.offer'), 'have') + row('want', T('tr.request'), 9) + `<button class="big primary" data-a="propose" ${my && give && want ? '' : 'disabled'}>${T('tr.propose')}</button>`;
     }
-    return modal(`<h2>${T('tr.title')}</h2><div class="tabs"><button class="${ui.tab === 'bank' ? 'on' : ''}" data-a="tab" data-k="bank">${T('tr.bank')}</button><button class="${ui.tab === 'players' ? 'on' : ''}" data-a="tab" data-k="players">${T('tr.players')}</button></div>${body}`, { cls: 'trade' });
+    return modal(`<h2>${ui.tab === 'bank' ? '🏦 ' + T('tr.bank') : '🤝 ' + T('tr.players')}</h2>${body}`, { cls: 'trade' });
   }
   function rulesModal() {
     const R = root.I18N.rules(), i = Math.min(ui.rule, R.length - 1);
@@ -320,6 +333,8 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
 <div class="setrow"><span>${T('set.sound')}</span><div class="seg"><button class="${ui.sound ? 'on' : ''}" data-a="sound" data-k="1">${T('set.on')}</button><button class="${ui.sound ? '' : 'on'}" data-a="sound" data-k="0">${T('set.off')}</button></div></div>
 ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can ? 'set.auto.d' : 'set.auto.h')}</small></span><div class="seg"><button class="${g.auto ? 'on' : ''}" data-a="auto" data-k="1" ${can ? '' : 'disabled'}>${T('set.on')}</button><button class="${g.auto ? '' : 'on'}" data-a="auto" data-k="0" ${can ? '' : 'disabled'}>${T('set.off')}</button></div></div>`}
 <div class="setrow"><span>${T('set.cam')}<small>${T('set.cam.d')}</small></span><div class="seg"><button data-a="camreset">${T('cam.reset')}</button><button data-a="camflat">${T('cam.flat')}</button></div></div>
+<div class="setrow"><span>${T('v.title')}<small>${SR ? T('v.set.d') : T('v.unsupported')}</small></span><div class="seg"><button class="${voice.on ? 'on' : ''}" data-a="vtoggle" ${SR ? '' : 'disabled'}>${voice.on ? T('set.on') : T('v.start')}</button></div></div>
+<div class="setrow"><span>${T('v.wake')}<small>${T('v.wake.h')}</small></span><div class="seg"><button class="${voice.wake ? 'on' : ''}" data-a="vwake" data-k="1">${T('set.on')}</button><button class="${voice.wake ? '' : 'on'}" data-a="vwake" data-k="0">${T('set.off')}</button></div></div>
 <div class="setrow"><span></span><button class="big" data-a="leave">${T('a.leave')}</button></div>`, { cls: 'settings' });
   }
   function discardModal(g) {
@@ -347,12 +362,186 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       if (ui.modal === 'trade') { if (myTurn() && g.phase === 'main' || ui.tab === 'players') h = tradeModal(g); else ui.modal = null; }
       else if (ui.modal === 'rules') h = rulesModal();
       else if (ui.modal === 'settings') h = settingsModal();
+      else if (ui.modal === 'vhelp') h = voiceHelp();
       else if (ui.modal === 'plenty' || ui.modal === 'monopoly') h = pickModal(ui.modal);
     }
     const key = ui.modal === 'rules' && h ? 'rules:' + ui.rule + ':' + root.I18N.lang : '';
     if (key && key === ui.modalKey && el.firstChild) return;
     ui.modalKey = key;
     el.innerHTML = h;
+  }
+
+  // ---------- control por voz ----------
+  const SR = root.SpeechRecognition || root.webkitSpeechRecognition;
+  const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[¿?¡!.,;:"“”()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const NUM = { cero: 0, uno: 1, una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintiun: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100,
+    zero: 0, one: 1, two: 2, to: 2, too: 2, three: 3, four: 4, for: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
+  const RESW = { madera: 'wood', lena: 'wood', arbol: 'wood', wood: 'wood', lumber: 'wood', arcilla: 'brick', ladrillo: 'brick', ladrillos: 'brick', barro: 'brick', brick: 'brick', bricks: 'brick', clay: 'brick', lana: 'wool', oveja: 'wool', ovejas: 'wool', wool: 'wool', sheep: 'wool', trigo: 'grain', cereal: 'grain', cereales: 'grain', grano: 'grain', grain: 'grain', wheat: 'grain', mineral: 'ore', minerales: 'ore', piedra: 'ore', hierro: 'ore', ore: 'ore', stone: 'ore' };
+  // lista de {n, i}: números (dígitos o palabras, incluso "treinta y cinco") con su posición
+  function numsIn(words) {
+    const out = [];
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      let n = /^\d+$/.test(w) ? +w : NUM[w];
+      if (n === undefined) continue;
+      if (n >= 30 && n % 10 === 0 && n < 100) {
+        let j = i + 1; if (words[j] === 'y' || words[j] === 'and') j++;
+        const u = /^\d$/.test(words[j]) ? +words[j] : NUM[words[j]];
+        if (u !== undefined && u > 0 && u < 10) { n += u; i = j; }
+      }
+      out.push({ n, i });
+    }
+    return out;
+  }
+  const resIn = (words) => words.map((w, i) => (RESW[w] ? { r: RESW[w], i } : null)).filter(Boolean);
+  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: true };
+  try { voice.wake = localStorage.getItem('mesa-wake') !== '0'; } catch (e) {}
+
+  const fire = (a, data) => onClick({ target: { closest: () => ({ dataset: Object.assign({ a }, data || {}), classList: { contains: () => true } }) } });
+  function vsay(ok, msg) { voice.ok = ok; voice.msg = msg; renderVoice(); }
+  function speak(text) {
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = root.I18N.lang === 'en' ? 'en-US' : 'es-ES'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+  }
+
+  // Interpreta una frase y ejecuta la acción. Devuelve true si la entendió.
+  function voiceCommand(raw) {
+    const g = ui.g; if (!g) return false;
+    let t = norm(raw);
+    const wakeRe = /\b(catan|catanes|catane|kattan|cattan|katan)\b/;
+    if (voice.wake) {
+      const had = wakeRe.test(t);
+      if (!had && Date.now() > voice.armUntil) return null; // no era para el juego
+      t = t.replace(/\b(oye|hey|ok|vale)?\s*(catan|catanes|catane|kattan|cattan|katan)\b/, ' ').replace(/\s+/g, ' ').trim();
+      if (!t) { voice.armUntil = Date.now() + 7000; vsay(true, T('v.listening')); return true; }
+      voice.armUntil = 0;
+    }
+    const w = t.split(' '), nums = numsIn(w), ress = resIn(w), has = (re) => re.test(t);
+    const my = myTurn();
+    const L = g.legal || {};
+    const need = () => { if (!my) { vsay(false, T('v.notyou')); return true; } return false; };
+
+    if (has(/\b(que hago|ayuda|help|what do i do|what now)\b/)) { const i = guideInfo(g); const x = i.title + '. ' + (i.text || ''); speak(x); vsay(true, x); return true; }
+    if (has(/\b(reglas|rules|rulebook)\b/)) { fire('rules'); vsay(true, T('a.rules')); return true; }
+    if (has(/\b(cancela|cancelar|atras|olvidalo|cancel|never ?mind|back)\b/)) { ui.mode = null; ui.modal = null; ui.api.rerender(); vsay(true, T('a.cancel')); return true; }
+    // cámara
+    if (has(/\b(gira|girar|rota|rotar|rotate|turn)\b/) && has(/\b(izquierda|derecha|left|right)\b/)) { if (ui.b3) { ui.b3.cam.yaw += has(/izquierda|left/) ? -35 : 35; ui.b3.redraw(); } vsay(true, 'OK'); return true; }
+    if (has(/\b(zoom|acerca|acercar|aleja|alejar|closer|further)\b/)) { if (ui.b3) { ui.b3.cam.zoom *= has(/aleja|alejar|further|out/) ? 0.85 : 1.2; ui.b3.redraw(); } vsay(true, 'OK'); return true; }
+    if (has(/\b(plano|2d|flat)\b/)) { fire('camflat'); vsay(true, 'OK'); return true; }
+    if (has(/\b(vista normal|restablecer|reset camara|reset camera)\b/)) { fire('camreset'); vsay(true, 'OK'); return true; }
+
+    // elegir a quién robar
+    if (g.phase === 'steal' && my) {
+      const v = (g.victims || []).find((i) => { const nm = norm(nameOf(i)); return nm && t.indexOf(nm) >= 0; });
+      if (v !== undefined) { fire('steal', { id: v }); vsay(true, nameOf(v)); return true; }
+    }
+    // tirar los dados
+    if (has(/\b(tira|tirar|tiro|lanza|lanzar|dados|roll|throw)\b/) && !has(/\b(carta|cambiar|banco)\b/)) { if (need()) return true; if (g.phase !== 'roll') { vsay(false, T('v.notNow')); return true; } fire('roll'); vsay(true, T('a.roll')); return true; }
+    // terminar turno
+    if (has(/\b(termina|terminar|termino|acabar|acabo|fin|siguiente|pasar|paso|pasa|end|finish|pass|done|next)\b/) && !has(/\b(camino|poblado|ciudad)\b/)) { if (need()) return true; fire('end'); vsay(true, T('a.end')); return true; }
+    // comprar carta
+    if (has(/\b(carta|cartas|desarrollo|card|development)\b/) && has(/\b(compra|comprar|compro|saca|sacar|buy|draw|get)\b/)) { if (need()) return true; fire('buyDev'); vsay(true, T('b.dev')); return true; }
+    // jugar cartas de desarrollo
+    if (has(/\b(caballero|soldado|knight)\b/) && has(/\b(juega|jugar|juego|usa|usar|play|use)\b/)) { if (need()) return true; fire('dev', { k: 'knight' }); vsay(true, T('dev.knight')); return true; }
+    if (has(/\b(monopolio|monopoly)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'monopoly', res: ress[0].r }); vsay(true, T('dev.monopoly')); return true; }
+    if (has(/\b(abundancia|invento|plenty|harvest)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'plenty', a: ress[0].r, b: (ress[1] || ress[0]).r }); vsay(true, T('dev.plenty')); return true; }
+    if (has(/\b(carreteras|construccion de caminos|road building)\b/)) { if (need()) return true; fire('dev', { k: 'roadbuilding' }); vsay(true, T('dev.roadbuilding')); return true; }
+    // descartar
+    if (g.phase === 'discard' && g.discard[g.me] && has(/\b(descart\w*|discard|suelto|tiro)\b/)) {
+      const cards = {}; let tot = 0;
+      ress.forEach((rr) => { const pre = nums.filter((q) => q.i < rr.i).pop(); const n = pre && rr.i - pre.i <= 2 ? pre.n : 1; cards[rr.r] = (cards[rr.r] || 0) + n; tot += n; });
+      if (!tot) { vsay(false, T('v.what')); return true; }
+      act({ t: 'discard', cards }, ui.api.local ? g.me : undefined); vsay(true, resList(cards)); return true;
+    }
+    // comerciar con el banco / ofertas
+    const split = t.split(/\b(por|a cambio de|for|into)\b/);
+    if (split.length >= 3 && has(/\b(banco|bank|cambia|cambiar|cambio|intercambia|intercambiar|swap|trade|exchange)\b/) && !has(/\b(jugadores|players|ofrece|ofrecer)\b/)) {
+      const A = resIn(split[0].split(' '))[0], B = resIn(split.slice(2).join(' ').split(' '))[0];
+      if (A && B) { if (need()) return true; act({ t: 'bank', give: A.r, get: B.r }); vsay(true, T('res.' + A.r) + ' → ' + T('res.' + B.r)); return true; }
+    }
+    if (split.length >= 3 && has(/\b(ofrece|ofrecer|ofrezco|propon\w*|offer|propose|jugadores|players)\b/)) {
+      const side = (txt) => { const ww = txt.split(' '), rs = resIn(ww), ns = numsIn(ww), o = {}; rs.forEach((rr) => { const pre = ns.filter((q) => q.i < rr.i).pop(); o[rr.r] = (o[rr.r] || 0) + (pre && rr.i - pre.i <= 2 ? pre.n : 1); }); return o; };
+      const give = side(split[0]), want = side(split.slice(2).join(' '));
+      if (Object.keys(give).length && Object.keys(want).length) { if (need()) return true; act({ t: 'offer', give, want }); vsay(true, resList(give) + ' ⇄ ' + resList(want)); return true; }
+    }
+    if (g.offer && has(/\b(acepto|aceptar|acepta|accept|yes|si)\b/) && !ui.api.local) { act({ t: 'respond', accept: true }); vsay(true, T('a.accept')); return true; }
+    if (g.offer && has(/\b(rechazo|rechazar|rechaza|decline|reject|no)\b/) && !ui.api.local) { act({ t: 'respond', accept: false }); vsay(true, T('a.decline')); return true; }
+    if (has(/\b(comerciar|comercio|trade)\b/)) { fire('trade', { k: has(/jugadores|players/) ? 'players' : 'bank' }); vsay(true, T('a.trade')); return true; }
+    // recoger materiales de un hexágono (por su número o su recurso)
+    if (has(/\b(recoge|recoger|recojo|coger|cojo|cobra|cobrar|collect|take|grab)\b/)) {
+      const tiles = (g.pendTiles || []);
+      const T0 = g.board.tiles;
+      let pick = tiles.find((ti) => nums.some((q) => q.n === T0[ti].num) || ress.some((rr) => rr.r === T0[ti].res));
+      if (pick === undefined && tiles.length === 1) pick = tiles[0];
+      if (pick !== undefined) { fire('collect', { id: pick }); vsay(true, T('res.' + T0[pick].res) + ' ' + (T0[pick].num || '')); return true; }
+      vsay(false, T('collect.none')); return true;
+    }
+    // modos de construcción
+    let kind = null;
+    if (has(/\b(camino|caminos|carretera|calle|road)\b/)) kind = 'road';
+    else if (has(/\b(poblado|pueblo|casa|asentamiento|settlement|house|village)\b/)) kind = 'settlement';
+    else if (has(/\b(ciudad|city|town)\b/)) kind = 'city';
+    const num = nums.length ? nums[nums.length - 1].n : null;
+    const inSetup = g.phase === 'setup' || g.phase === 'roadbuilding';
+    if (kind && !inSetup) {
+      if (need()) return true;
+      if (g.phase !== 'main' && g.phase !== 'special') { vsay(false, T('v.notNow')); return true; }
+      if (ui.mode !== kind) { ui.mode = kind; ui.api.rerender(); }
+      vsay(true, T('b.' + kind));
+      if (num === null) return true;
+    }
+    // elegir un punto numerado del tablero
+    if (num !== null) {
+      const sp = ui.spots;
+      if (!sp || !sp.ids.length) { vsay(false, T('v.nospot')); return true; }
+      const id = sp.ids[num - 1];
+      if (id === undefined) { vsay(false, T('v.badnum', { n: num })); return true; }
+      fire(sp.kind === 'road' ? 'spot-e' : sp.kind === 'robber' ? 'spot-t' : 'spot-v', { id });
+      vsay(true, '#' + num); return true;
+    }
+    return false;
+  }
+
+  function startVoice() {
+    if (!SR) { vsay(false, T('v.unsupported')); return; }
+    if (voice.on) return;
+    const rec = new SR();
+    rec.lang = root.I18N.lang === 'en' ? 'en-US' : 'es-ES';
+    rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 3;
+    rec.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (!ev.results[i].isFinal) continue;
+        let done = null;
+        for (let a = 0; a < ev.results[i].length && !done; a++) {
+          const txt = ev.results[i][a].transcript; voice.last = txt;
+          try { done = voiceCommand(txt); } catch (e) { done = false; }
+        }
+        if (done === false) vsay(false, T('v.what') + ' «' + voice.last.trim() + '»'); else if (done === null) { voice.last = ''; renderVoice(); }
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; vsay(false, T('v.denied')); }
+    };
+    rec.onend = () => { if (voice.on) { try { rec.start(); } catch (e) {} } else renderVoice(); };
+    voice.rec = rec; voice.on = true;
+    try { rec.start(); } catch (e) {}
+    vsay(true, voice.wake ? T('v.on.wake') : T('v.on'));
+    ui.api.rerender();
+  }
+  function stopVoice() {
+    voice.on = false;
+    try { voice.rec && voice.rec.stop(); } catch (e) {}
+    voice.rec = null; voice.msg = ''; voice.last = '';
+    renderVoice(); ui.api.rerender();
+  }
+  function renderVoice() {
+    const el = $('#cg-voice'); if (!el) return;
+    if (!voice.on) { el.className = ''; el.innerHTML = voice.msg && !voice.ok ? `<span class="vmsg bad">${esc(voice.msg)}</span>` : ''; if (voice.msg && !voice.ok) { el.className = 'on'; } return; }
+    el.className = 'on';
+    el.innerHTML = `<span class="vmic">🎤</span><span class="vmsg ${voice.ok ? '' : 'bad'}">${esc(voice.msg || T('v.listening'))}</span><button data-a="vhelp" title="${T('v.help')}">?</button>`;
+  }
+  function voiceHelp() {
+    const w = voice.wake ? `<p class="sub">${T('v.wake.d')}</p>` : '';
+    return modal(`<h2>🎤 ${T('v.title')}</h2>${w}<div class="vhelp">${T('v.cmds')}</div><p class="sub">${T('v.note')}</p>`, { cls: 'rules' });
   }
 
   // ---------- eventos ----------
@@ -375,8 +564,12 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       case 'camreset': if (ui.b3) { ui.b3.cam.yaw = 28; ui.b3.cam.pitch = 52; ui.b3.cam.zoom = 1; ui.b3.redraw(); } return;
       case 'camflat': if (ui.b3) { ui.b3.cam.yaw = 0; ui.b3.cam.pitch = 0; ui.b3.cam.zoom = 1; ui.b3.redraw(); } return;
       case 'collect':
-        if (!(g.myPend && g.myPend[id])) { pushToast('<span>' + esc(T('collect.none')) + '</span>'); return; }
+        if (!(ui.api.local ? (g.pendTiles || []).includes(id) : (g.myPend && g.myPend[id]))) { pushToast('<span>' + esc(T('collect.none')) + '</span>'); return; }
         act({ t: 'collect', tile: id }); return;
+      case 'vtoggle': if (voice.on) stopVoice(); else startVoice(); return;
+      case 'vwake': voice.wake = k === '1'; try { localStorage.setItem('mesa-wake', k); } catch (x) {} rerender(); return;
+      case 'vhelp': ui.modal = 'vhelp'; rerender(); return;
+      case 'eye': ui.reveal = !ui.reveal; rerender(); return;
       case 'popmin': ui.popMin = true; ui.guideKey = ''; rerender(); return;
       case 'roll': if (myTurn() && g.phase === 'roll') act({ t: 'roll' }); return;
       case 'end': ui.mode = null; act({ t: 'end' }); return;
@@ -415,12 +608,12 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       const d = document.createElement('div'); d.id = 'cg-symbols'; d.innerHTML = SYMBOLS; document.body.appendChild(d);
     }
     if (ui.b3) { try { ui.b3.destroy(); } catch (e) {} ui.b3 = null; }
-    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '', annQ: [], annBusy: false, turnKey: '' });
+    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '', eyeFor: -1, reveal: false, annQ: [], annBusy: false, turnKey: '' });
     main.innerHTML = `<div id="cg">
-<div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
+<div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="vtoggle" id="cg-micbtn">🎤</button><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
-<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-big"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
-<div id="cg-bottom"><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
+<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-big"></div><div id="cg-voice"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
+<div id="cg-bottom"><button id="cg-eye" data-a="eye" style="display:none"></button><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
 <aside id="cg-side"><div id="cg-guide" class="gpop"></div><div id="cg-offer" class="parch"></div><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
     $('#cg').addEventListener('click', onClick);
@@ -433,7 +626,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     ui.api = api; ui.room = room; ui.g = g;
     const ttl = $('#cg-top .ttl');
     ttl.innerHTML = `<span class="logo">${ic('settle', 26)}</span><b>${esc(root.GAMES.find((x) => x.id === room.game).name[root.I18N.lang])}</b><span class="rm">${T('room')} ${esc(room.code)}</span>`;
-    $('#cg-top .topbtns').innerHTML = `<button data-a="rules">📖 ${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button>`;
+    $('#cg-top .topbtns').innerHTML = `<button data-a="vtoggle" id="cg-micbtn" class="${voice.on ? 'micon' : ''}" title="${T('v.title')}">🎤${voice.on ? ' ●' : ''}</button><button data-a="rules">📖 ${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button>`;
     if (g.phase !== 'main' && g.phase !== 'special') ui.mode = null;
     document.querySelectorAll('#cg-boardwrap .cam [data-cam]').forEach((b) => { b.title = T('cam.' + b.dataset.cam); });
     processEvents(g);
@@ -441,11 +634,12 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     renderPlayers(g, room);
     renderHand(g);
     renderGuide(g, room);
+    renderPrivacy(g);
     renderOffer(g, room);
     renderLog(g);
     renderDice(g);
     renderModal(g, room);
   }
 
-  root.CatanUI = { update };
+  root.CatanUI = { update, voiceCommand: (t, wake) => { voice.wake = !!wake; return voiceCommand(t); } };
 })(typeof window !== 'undefined' ? window : globalThis);

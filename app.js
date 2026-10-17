@@ -286,12 +286,12 @@
     net.onl = cur;
   }
 
-  function startLocal(n) {
+  function startLocal(names, privacy) {
     leaveAll(true);
     const room = newRoom('LOCL', state.game);
-    for (let i = 0; i < n; i++) room.add('L' + i, (I18N.lang === 'en' ? 'Player ' : 'Jugador ') + (i + 1));
+    names.forEach((nm, i) => room.add('L' + i, nm));
+    net.privacy = !!privacy;
     room.handle('L0', { t: 'start' });
-    if (room.engine && room.engine.setAuto) room.engine.setAuto(true); // en partida local los recursos se reparten solos
     net.room = room; net.role = 'local';
     broadcast();
   }
@@ -302,7 +302,12 @@
       const room = net.room;
       let id = 'host';
       if (net.role === 'local') id = as !== undefined ? room.players[as].id : (room.started ? actingId(room) : 'L0');
-      const err = room.handle(id, m);
+      let err;
+      if (net.role === 'local' && m.t === 'collect') {
+        // pantalla compartida: al tocar un hexágono cobran todos los jugadores que tengan algo pendiente ahí
+        room.players.forEach((pl) => { room.handle(pl.id, m); });
+        err = null;
+      } else err = room.handle(id, m);
       if (err) toast(err);
       broadcast();
     } else if (net.hostConn && net.hostConn.open) {
@@ -346,7 +351,7 @@
     renderBanner();
     const r = state.room, playing = !!(r && r.started && r.g), full = playing && r.game === 'catan2';
     if (full !== inGame) { inGame = full; $('#sidebar').classList.toggle('closed', full); }
-    if (full) return CatanUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local', isHost: r.hostId === state.myId });
+    if (full) return CatanUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local', privacy: net.privacy, isHost: r.hostId === state.myId });
     if (playing) return CatanSimple.render(main, r, { send, leave });
     if (r) return renderWaiting();
     if (!state.game) return renderHome();
@@ -366,12 +371,33 @@
       <p style="margin-bottom:0">${T('lobby.or')}</p>
       <div class="row"><input id="code" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" value="${esc(params.get('sala') || '')}"><button class="btn" id="join">${T('lobby.join')}</button></div>
       <p class="hint">${T('lobby.host')}</p>
-      ${g.local ? `<hr><p style="margin-bottom:0"><b>${T('lobby.local')}</b></p><div class="row"><select id="nloc"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select><span>${T('lobby.localN')}</span><button class="btn" id="local">${T('lobby.localGo')}</button></div>` : ''}
+      ${g.local ? `<hr><p style="margin-bottom:4px"><b>🖥️ ${T('lobby.local')}</b></p><p class="hint" style="margin-top:0">${T('lobby.local.d')}</p>
+      <div class="row"><select id="nloc"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select><span>${T('lobby.localN')}</span></div>
+      <div id="locnames"></div>
+      <label class="chk"><input type="checkbox" id="locpriv" checked> ${T('lobby.local.priv')}</label>
+      <div class="row"><button class="btn alt" id="local">${T('lobby.localGo')}</button></div>` : ''}
     </div>`;
     const name = () => { const n = $('#name').value.trim(); if (!n) { toast('lobby.needName'); return null; } try { localStorage.setItem('mesa-name', n); } catch (e) {} return n; };
     $('#create').onclick = () => { const n = name(); if (n) createRoom(n); };
     $('#join').onclick = () => { const n = name(); if (n) joinRoom($('#code').value, n); };
-    if (g.local) $('#local').onclick = () => startLocal(+$('#nloc').value);
+    if (g.local) {
+      let saved = []; try { saved = JSON.parse(localStorage.getItem('mesa-locnames') || '[]'); } catch (e) {}
+      const drawNames = () => {
+        const n = +$('#nloc').value, cur = Array.from(document.querySelectorAll('#locnames input')).map((i) => i.value);
+        $('#locnames').innerHTML = Array.from({ length: n }, (_, i) => `<div class="locrow"><span class="dot" style="background:${MesaRoom.COLORS[i]}"></span><input maxlength="20" placeholder="${T('lobby.local.p', { n: i + 1 })}" value="${esc(cur[i] !== undefined ? cur[i] : (saved[i] || ''))}"></div>`).join('');
+      };
+      drawNames();
+      $('#nloc').onchange = drawNames;
+      $('#local').onclick = () => {
+        const inputs = Array.from(document.querySelectorAll('#locnames input'));
+        const empty = inputs.filter((i) => !i.value.trim());
+        inputs.forEach((i) => i.classList.toggle('bad', !i.value.trim()));
+        if (empty.length) { empty[0].focus(); toast('lobby.needName'); return; }
+        const names = inputs.map((i) => i.value.trim());
+        try { localStorage.setItem('mesa-locnames', JSON.stringify(names)); } catch (e) {}
+        startLocal(names, $('#locpriv').checked);
+      };
+    }
   }
 
   function renderWaiting() {
