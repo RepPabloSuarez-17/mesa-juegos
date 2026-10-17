@@ -46,23 +46,27 @@
       return out;
     };
     if (res === 'wood') {
-      spread(9, 14, 0.42, 0.8).forEach((p) => {
+      spread(11, 13, 0.4, 0.82).forEach((p) => {
         const k = 0.85 + r() * 0.45;
-        objs.push({ x: p.x, y: p.y, s: k, svg: '<ellipse cy="10" rx="8" ry="2.6" fill="rgba(0,0,0,.28)"/><rect x="-1.7" y="4" width="3.4" height="7" fill="#4b2e17"/><polygon points="0,-19 8.5,-5 -8.5,-5" fill="#1d5a2d"/><polygon points="0,-11 11,6 -11,6" fill="#2e8040"/><polygon points="0,-19 3,-13 -2,-12" fill="#3f9a52"/>' });
+        if (r() < 0.3) objs.push({ x: p.x, y: p.y, s: k, svg: '<ellipse cy="10" rx="9" ry="2.8" fill="rgba(0,0,0,.28)"/><rect x="-1.8" y="1" width="3.6" height="10" fill="#4b2e17"/><circle cx="-5" cy="-3" r="7" fill="#2f7d3b"/><circle cx="5" cy="-4" r="7.5" fill="#3a9148"/><circle cx="0" cy="-10" r="8" fill="#47a655"/><circle cx="-2.5" cy="-12.5" r="3.4" fill="#7fd18a" opacity=".6"/>' });
+        else objs.push({ x: p.x, y: p.y, s: k, svg: '<ellipse cy="10" rx="8" ry="2.6" fill="rgba(0,0,0,.28)"/><rect x="-1.7" y="4" width="3.4" height="7" fill="#4b2e17"/><polygon points="0,-22 8,-9 -8,-9" fill="#1d5a2d"/><polygon points="0,-14 10,0 -10,0" fill="#27703a"/><polygon points="0,-6 12,7 -12,7" fill="#2e8040"/><polygon points="0,-22 3,-16 -2,-15" fill="#52ad62"/><polygon points="0,-14 4,-8 -2,-7" fill="#46a05a" opacity=".8"/>' });
       });
-      spread(12, 9, 0.2, 0.9).forEach((p) => ground.push(`<ellipse cx="${f1(p.x)}" cy="${f1(p.y)}" rx="9" ry="6" fill="#1b4d27" opacity=".35"/>`));
+      spread(14, 9, 0.2, 0.9).forEach((p) => ground.push(`<ellipse cx="${f1(p.x)}" cy="${f1(p.y)}" rx="10" ry="6.5" fill="#143d1f" opacity=".38"/>`));
+      spread(10, 8, 0.2, 0.9).forEach((p) => ground.push(`<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="1.5" fill="${r() < 0.5 ? '#e8d0a0' : '#c9473a'}" opacity=".9"/>`));
     } else if (res === 'wool') {
       spread(6, 19, 0.45, 0.8).forEach((p) => {
         const k = 1 + r() * 0.3, f = r() < 0.5 ? 1 : -1;
         objs.push({ x: p.x, y: p.y, s: k, f, svg: '<ellipse cy="9" rx="8.5" ry="2.6" fill="rgba(0,0,0,.24)"/><ellipse cy="1" rx="8.2" ry="5.8" fill="#f8f5ea" stroke="#c4bea8" stroke-width=".8"/><circle cx="7" cy="-1.5" r="3" fill="#3a3834"/><rect x="-4.5" y="4" width="2" height="5.5" fill="#3a3834"/><rect x="3" y="4" width="2" height="5.5" fill="#3a3834"/>' });
       });
-      spread(26, 6, 0.1, 0.92).forEach((p) => ground.push(`<path d="M${f1(p.x)} ${f1(p.y)} l1.2 -4 M${f1(p.x + 3)} ${f1(p.y)} l-1 -3.4" stroke="#d6f5a0" stroke-width="1.2" stroke-linecap="round" opacity=".7" fill="none"/>`));
+      spread(30, 6, 0.1, 0.92).forEach((p) => ground.push(`<path d="M${f1(p.x)} ${f1(p.y)} l1.2 -4 M${f1(p.x + 3)} ${f1(p.y)} l-1 -3.4" stroke="#d6f5a0" stroke-width="1.2" stroke-linecap="round" opacity=".7" fill="none"/>`));
+      spread(16, 7, 0.15, 0.9).forEach((p) => { const c = ['#fff6f0', '#ffd24a', '#f59ac0', '#b7a6ff'][Math.floor(r() * 4)]; ground.push(`<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="1.7" fill="${c}"/><circle cx="${f1(p.x)}" cy="${f1(p.y)}" r=".6" fill="#e08a1a"/>`); });
     } else if (res === 'grain') {
       for (let k = -7; k <= 7; k++) {
         ground.push(`<line x1="${k * 9}" y1="-62" x2="${k * 9}" y2="62" stroke="#b98a22" stroke-width="3.4" opacity=".4"/>`);
         ground.push(`<line x1="${k * 9 + 3}" y1="-62" x2="${k * 9 + 3}" y2="62" stroke="#fff3b8" stroke-width="2" stroke-dasharray="2 5" opacity=".55"/>`);
       }
-      spread(8, 15, 0.45, 0.8).forEach((p) => {
+      spread(2, 30, 0.5, 0.78).forEach((p) => objs.push({ x: p.x, y: p.y, s: 1, svg: '<ellipse cy="8" rx="11" ry="3" fill="rgba(0,0,0,.25)"/><rect x="-9" y="-6" width="18" height="13" rx="6" fill="#e0b14a" stroke="#8f6a14" stroke-width="1"/><ellipse cx="-9" cy=".5" rx="2.6" ry="6.5" fill="#f1cd6e" stroke="#8f6a14" stroke-width=".8"/><path d="M-6 -3 H8 M-6 1 H8 M-6 5 H8" stroke="#a97d1c" stroke-width=".9" opacity=".7"/>' }));
+      spread(10, 13, 0.4, 0.82).forEach((p) => {
         const k = 0.9 + r() * 0.3;
         objs.push({ x: p.x, y: p.y, s: k, svg: '<ellipse cy="9" rx="8" ry="2.2" fill="rgba(0,0,0,.2)"/><path d="M-4.5 9 L-5.5 -7 M0 9 L0 -10 M4.5 9 L5.5 -7" stroke="#b98a22" stroke-width="1.7" fill="none"/><g fill="#eab93a" stroke="#9a6f12" stroke-width=".6"><ellipse cx="-5.5" cy="-9" rx="2.2" ry="4.8"/><ellipse cx="0" cy="-12" rx="2.2" ry="4.8"/><ellipse cx="5.5" cy="-9" rx="2.2" ry="4.8"/></g>' });
       });
@@ -73,14 +77,16 @@
       });
       spread(10, 10, 0.1, 0.9).forEach((p) => ground.push(`<path d="M${f1(p.x - 5)} ${f1(p.y)} h10 M${f1(p.x - 3)} ${f1(p.y + 3)} h8" stroke="#8c3b21" stroke-width="1.4" opacity=".5" fill="none"/>`));
     } else if (res === 'ore') {
-      spread(4, 30, 0.45, 0.78).forEach((p) => {
-        const k = 0.78 + r() * 0.3;
+      spread(5, 26, 0.4, 0.8).forEach((p) => {
+        const k = 0.7 + r() * 0.34;
         objs.push({ x: p.x, y: p.y, s: k, svg: '<ellipse cy="10" rx="15" ry="3.4" fill="rgba(0,0,0,.28)"/><polygon points="0,-24 15,10 -15,10" fill="#8b93a1" stroke="#3b4350" stroke-width="1.1"/><polygon points="0,-24 15,10 5,10" fill="#5c6471"/><polygon points="0,-24 6,-9 1,-12 -6,-8" fill="#f6f8fb"/><polygon points="-15,10 -6,-8 -2,10" fill="#a4abb8"/>' });
       });
-      spread(12, 8, 0.1, 0.9).forEach((p) => ground.push(`<polygon points="${f1(p.x)},${f1(p.y - 3)} ${f1(p.x + 4)},${f1(p.y + 2)} ${f1(p.x - 4)},${f1(p.y + 2)}" fill="#5b6370" opacity=".5"/>`));
+      spread(7, 12, 0.3, 0.85).forEach((p) => objs.push({ x: p.x, y: p.y, s: 0.8 + r() * 0.5, svg: '<ellipse cy="5" rx="8" ry="2.2" fill="rgba(0,0,0,.25)"/><polygon points="-7,5 -4,-3 3,-5 8,2 6,5" fill="#7d8695" stroke="#3b4350" stroke-width=".9"/><polygon points="-4,-3 3,-5 1,0" fill="#b9c0cc"/>' }));
+      spread(14, 8, 0.1, 0.9).forEach((p) => ground.push(`<polygon points="${f1(p.x)},${f1(p.y - 3)} ${f1(p.x + 4)},${f1(p.y + 2)} ${f1(p.x - 4)},${f1(p.y + 2)}" fill="#5b6370" opacity=".5"/>`));
     } else if (res === 'desert') {
       [-32, -14, 5, 24, 42].forEach((y, i) => ground.push(`<path d="M-48 ${y} Q-24 ${y - 10} 0 ${y} T48 ${y}" fill="none" stroke="${i % 2 ? '#fbf1cb' : '#bfa465'}" stroke-width="2.4" opacity=".75"/>`));
       objs.push({ x: -30, y: 20, s: 1.15, svg: '<ellipse cy="9" rx="8" ry="2.2" fill="rgba(0,0,0,.2)"/><rect x="-2" y="-10" width="4" height="19" rx="2" fill="#4e8c49"/><rect x="-8" y="-4" width="3.4" height="8" rx="1.7" fill="#4e8c49"/><rect x="4.6" y="-6" width="3.4" height="8" rx="1.7" fill="#4e8c49"/>' });
+      objs.push({ x: 8, y: -26, s: 1.1, svg: '<ellipse cy="9" rx="9" ry="2.4" fill="rgba(0,0,0,.2)"/><path d="M0 9 Q-2 -4 1 -14" stroke="#7a5a2c" stroke-width="2.6" fill="none" stroke-linecap="round"/><g fill="#4e9a4a"><path d="M1 -14 Q-10 -17 -15 -9 Q-6 -14 1 -12Z"/><path d="M1 -14 Q10 -18 16 -10 Q8 -14 1 -12Z"/><path d="M1 -14 Q-4 -23 -11 -21 Q-4 -19 1 -12Z"/><path d="M1 -14 Q6 -23 13 -20 Q6 -18 1 -12Z"/></g>' });
       objs.push({ x: 24, y: 28, s: 0.9, svg: '<ellipse cy="8" rx="9" ry="2.4" fill="rgba(0,0,0,.2)"/><path d="M-9 8 Q-5 -3 0 -1 Q6 -5 10 8 Z" fill="#d9c284" stroke="#a89154" stroke-width="1"/>' });
     }
     return { ground: ground.join(''), objs };
@@ -124,12 +130,18 @@
     ];
   }
   function houseMesh(x, y, z, col) {
-    return box(x, y, z, 21, 16, 13, 0, col).slice(0, 4).concat(gable(x, y, z + 13, 25.5, 20, 11, shade(col, 0.7)));
+    return box(x, y, z, 21, 16, 13, 0, col).slice(0, 4).concat(gable(x, y, z + 13, 25.5, 20, 11, shade(col, 0.7)))
+      .concat(box(x - 4, y + 8.3, z, 5, 0.6, 8.5, 0, '#3a2412').slice(0, 1))
+      .concat(box(x + 5, y + 8.3, z + 5, 5, 0.6, 4.5, 0, '#ffe9a8').slice(0, 1))
+      .concat(box(x + 7, y - 2, z + 14, 4.4, 4.4, 11, 0, '#7a5a44'));
   }
   function cityMesh(x, y, z, col) {
     const roof = shade(col, 0.72);
     return box(x + 4, y + 1, z, 31, 20, 15, 0, col).slice(0, 4)
       .concat(gable(x + 4, y + 1, z + 15, 35, 24, 8, roof))
+      .concat(box(x + 8, y + 11.3, z, 6, 0.6, 9, 0, '#3a2412').slice(0, 1))
+      .concat(box(x + 18, y + 11.3, z + 6, 5, 0.6, 5, 0, '#ffe9a8').slice(0, 1))
+      .concat(box(x - 11, y + 4.3, z + 18, 5, 0.6, 7, 0, '#ffe9a8').slice(0, 1))
       .concat(box(x - 11, y - 3, z, 14, 14, 33, 0, col).slice(0, 4))
       .concat(pyramid(x - 11, y - 3, z + 33, 18, 18, 14, roof));
   }
@@ -164,28 +176,41 @@
     const nr = rng(5), dots = [];
     for (let i = 0; i < 70; i++) dots.push(`<circle cx="${(nr() * 40).toFixed(1)}" cy="${(nr() * 40).toFixed(1)}" r="${(0.5 + nr() * 1.1).toFixed(1)}" fill="${nr() < 0.5 ? '#000' : '#fff'}" opacity="${(0.06 + nr() * 0.1).toFixed(2)}"/>`);
     svg.innerHTML = `<defs>
-<radialGradient id="seaG" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${Math.round(R * 1.8)}"><stop offset="0" stop-color="#34a3a8"/><stop offset=".55" stop-color="#1c7683"/><stop offset="1" stop-color="#0d3f4c"/></radialGradient>
 ${grads}
 <pattern id="noise" width="40" height="40" patternUnits="userSpaceOnUse">${dots.join('')}</pattern>
 <clipPath id="hexclip"><polygon points="${hexLocal(SZ - 1.5)}"/></clipPath>
+<radialGradient id="tokG" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#e6d6a8"/></radialGradient>
+<linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".24"/></linearGradient>
 <radialGradient id="shadowG"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".6" stop-color="#000" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
 </defs>
-<rect x="-6000" y="-6000" width="12000" height="12000" fill="url(#seaG)"/>
-<g id="waves"></g><g id="scene"></g>`;
+<g id="scene"></g>`;
+    // El mar va en su propio SVG detrás (se anima sin repintar el tablero)
+    const sea = document.createElementNS(NS, 'svg');
+    sea.setAttribute('id', 'cg-sea');
+    sea.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    sea.innerHTML = `<defs><radialGradient id="seaG" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${Math.round(R * 1.9)}"><stop offset="0" stop-color="#3cb0b0"/><stop offset=".4" stop-color="#238a94"/><stop offset=".75" stop-color="#14606f"/><stop offset="1" stop-color="#0a3340"/></radialGradient>
+<radialGradient id="glintG"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+<rect x="-6000" y="-6000" width="12000" height="12000" fill="url(#seaG)"/><g id="waves"><g class="wv1"></g><g class="wv2"></g><g class="gl"></g></g>`;
     wrap.insertBefore(svg, wrap.firstChild);
-    const sceneG = svg.querySelector('#scene'), wavesG = svg.querySelector('#waves');
-    const wr = rng(11), wv = [];
-    for (let i = 0; i < 170; i++) {
+    wrap.insertBefore(sea, svg);
+    const sceneG = svg.querySelector('#scene'), wavesG = sea.querySelector('#waves');
+    const wr = rng(11), wv1 = [], wv2 = [], gl = [];
+    for (let i = 0; i < 190; i++) {
       const a = wr() * 6.283, d = Math.sqrt(wr()) * R * 2.3, x = Math.cos(a) * d, y = Math.sin(a) * d;
-      wv.push(`<path d="M${x.toFixed(0)} ${y.toFixed(0)} q9 -5 18 0 t18 0" fill="none" stroke="#fff" stroke-width="1.6" opacity="${(0.07 + wr() * 0.13).toFixed(2)}"/>`);
+      (i % 2 ? wv1 : wv2).push(`<path d="M${x.toFixed(0)} ${y.toFixed(0)} q9 -5 18 0 t18 0" fill="none" stroke="#fff" stroke-width="1.6" opacity="${(0.07 + wr() * 0.15).toFixed(2)}"/>`);
     }
-    wavesG.innerHTML = wv.join('');
+    for (let i = 0; i < 26; i++) {
+      const a = wr() * 6.283, d = Math.sqrt(wr()) * R * 1.9;
+      gl.push(`<ellipse cx="${(Math.cos(a) * d).toFixed(0)}" cy="${(Math.sin(a) * d).toFixed(0)}" rx="${(5 + wr() * 7).toFixed(0)}" ry="2.2" fill="url(#glintG)" style="animation-delay:${(wr() * 5).toFixed(1)}s"/>`);
+    }
+    wavesG.querySelector('.wv1').innerHTML = wv1.join(''); wavesG.querySelector('.wv2').innerHTML = wv2.join(''); wavesG.querySelector('.gl').innerHTML = gl.join('');
 
     // controles de cámara
     const ctl = document.createElement('div');
     ctl.className = 'cam';
     const L = opts.labels || {};
-    ctl.innerHTML = `<button data-cam="left" title="${L.left || ''}">⟲</button><button data-cam="right" title="${L.right || ''}">⟳</button><button data-cam="up" title="${L.up || ''}">▲</button><button data-cam="down" title="${L.down || ''}">▼</button><button data-cam="in" title="${L.in || ''}">＋</button><button data-cam="out" title="${L.out || ''}">－</button><button data-cam="flat" title="${L.flat || ''}">2D</button><button data-cam="reset" title="${L.reset || ''}">⌂</button><span class="camhint">${L.hint || ''}</span>`;
+    ctl.innerHTML = `<button class="camtog" data-cam="toggle" title="${L.toggle || ''}">🎥</button><div class="camtools"><button data-cam="left" title="${L.left || ''}">⟲</button><button data-cam="right" title="${L.right || ''}">⟳</button><button data-cam="up" title="${L.up || ''}">▲</button><button data-cam="down" title="${L.down || ''}">▼</button><button data-cam="in" title="${L.in || ''}">＋</button><button data-cam="out" title="${L.out || ''}">－</button><button data-cam="flat" title="${L.flat || ''}">2D</button><button data-cam="reset" title="${L.reset || ''}">⌂</button><span class="camhint">${L.hint || ''}</span></div>`;
+    try { if (localStorage.getItem('mesa-camui') === 'min') ctl.classList.add('min'); } catch (e) {}
     wrap.appendChild(ctl);
 
     let last = null, raf = 0, animUntil = 0, anim = false;
@@ -231,14 +256,16 @@ ${grads}
       const halfW = R * 1.04, halfH = R * cp + 40 * sp + 26;
       const sc = Math.min(cw / (2 * halfW), ch / (2 * halfH)) * cam.zoom;
       const vw = cw / sc, vh = ch / sc;
-      svg.setAttribute('viewBox', `${(-vw / 2).toFixed(1)} ${(-vh / 2 - 6).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`);
+      const vb = `${(-vw / 2).toFixed(1)} ${(-vh / 2 - 6).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`;
+      svg.setAttribute('viewBox', vb); sea.setAttribute('viewBox', vb);
       wavesG.setAttribute('transform', aff(0, 0, 0));
+      wavesG.style.display = lite ? 'none' : ''; // al arrastrar no se dibujan las olas
       const S = [];
 
       // espuma de la costa
       T.forEach((t) => {
         const ring = (r) => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return P(t.x + r * Math.cos(a), t.y + r * Math.sin(a), 0); });
-        S.push(`<polygon points="${poly(ring(SZ * 1.34))}" fill="#7fe3df" opacity=".13"/><polygon points="${poly(ring(SZ * 1.13))}" fill="#fff" opacity=".28"/>`);
+        if (!lite) S.push(`<polygon points="${poly(ring(SZ * 1.62))}" fill="#5fd6d0" opacity=".07"/>`); S.push(`<polygon points="${poly(ring(SZ * 1.34))}" fill="#7fe3df" opacity=".13"/><polygon points="${poly(ring(SZ * 1.13))}" fill="#fff" opacity=".28"/>`);
       });
 
       // hexágonos de atrás hacia delante
@@ -258,6 +285,11 @@ ${grads}
         }
         const top = corners.map((c) => P(c[0], c[1], t.h));
         S.push(`<polygon points="${poly(top)}" fill="url(#gr-${t.res})" stroke="#2c1e12" stroke-width="1.6" stroke-linejoin="round"/>`);
+        S.push(`<polygon points="${poly(top)}" fill="url(#bevel)"/>`);
+        for (let i = 0; i < 6 && !lite; i++) {
+          const na = Math.PI / 180 * (60 * i), lit = Math.cos(na) * LIGHT[0] + Math.sin(na) * LIGHT[1];
+          S.push(`<line x1="${f1(top[i].x)}" y1="${f1(top[i].y)}" x2="${f1(top[(i + 1) % 6].x)}" y2="${f1(top[(i + 1) % 6].y)}" stroke="${lit > 0 ? '#fff' : '#000'}" stroke-opacity="${(Math.abs(lit) * 0.38).toFixed(2)}" stroke-width="2.4" stroke-linecap="round"/>`);
+        }
         if (!lite) S.push(`<g transform="${aff(t.x, t.y, t.h)}"><g clip-path="url(#hexclip)">${t.ground}<polygon points="${hexLocal(SZ)}" fill="url(#noise)"/></g><polygon points="${hexLocal(SZ - 4.5)}" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.3"/></g>`);
       });
 
@@ -288,13 +320,14 @@ ${grads}
 
       // objetos de pie: se ordenan por profundidad
       T.forEach((t) => {
-        t.objs.forEach((o) => {
+        t.objs.forEach((o, oi) => {
+          if (lite && oi % 2) return; // al arrastrar se dibuja la mitad del decorado para ir fluido
           const p = P(t.x + o.x, t.y + o.y, t.h), s = p.k * o.s * (o.f || 1);
           items.push({ d: p.d + 0.001 * p.y, s: `<g transform="translate(${f1(p.x)},${f1(p.y - 10 * p.k * o.s)}) scale(${f1(p.k * o.s * (o.f || 1))},${f1(p.k * o.s)})">${o.svg}</g>` });
         });
         if (t.num) {
           const p = P(t.x, t.y, t.h), top = P(t.x, t.y, t.h + 7), k = p.k, hot = t.num === 6 || t.num === 8, dots = 6 - Math.abs(7 - t.num);
-          items.push({ d: p.d + 56, s: `<g><ellipse cx="${f1(p.x)}" cy="${f1(p.y + 1)}" rx="${f1(22 * k)}" ry="${f1(22 * k * Math.max(0.35, cp))}" fill="url(#shadowG)"/><g transform="translate(${f1(top.x)},${f1(top.y)}) scale(${f1(k)})"><circle r="17" fill="#f4e8c8" stroke="#6b4a24" stroke-width="2"/><circle r="14" fill="none" stroke="#c9b37a" stroke-width=".8"/><text y="3" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t.num > 9 ? 16 : 18}" fill="${hot ? '#b3261a' : '#2b1d12'}">${t.num}</text><text y="12" text-anchor="middle" font-size="6.5" letter-spacing="1" fill="${hot ? '#b3261a' : '#2b1d12'}">${'●'.repeat(dots)}</text></g></g>` });
+          items.push({ d: p.d + 56, s: `<g><ellipse cx="${f1(p.x)}" cy="${f1(p.y + 1)}" rx="${f1(22 * k)}" ry="${f1(22 * k * Math.max(0.35, cp))}" fill="url(#shadowG)"/><g transform="translate(${f1(top.x)},${f1(top.y)}) scale(${f1(k)})"><ellipse cy="3.2" rx="17" ry="17" fill="#7a5a2c"/><circle r="17" fill="url(#tokG)" stroke="#6b4a24" stroke-width="2"/><circle r="14" fill="none" stroke="#c9b37a" stroke-width=".8"/><path d="M-12 -7 A14 14 0 0 1 4 -13.4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/><text y="3" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t.num > 9 ? 16 : 18}" fill="${hot ? '#b3261a' : '#2b1d12'}">${t.num}</text><text y="12" text-anchor="middle" font-size="6.5" letter-spacing="1" fill="${hot ? '#b3261a' : '#2b1d12'}">${'●'.repeat(dots)}</text></g></g>` });
         }
       });
 
@@ -388,6 +421,7 @@ ${grads}
     wrap.addEventListener('click', (e) => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
     wrap.addEventListener('wheel', (e) => { e.preventDefault(); cam.zoom *= e.deltaY < 0 ? 1.08 : 1 / 1.08; clampCam(); saveCam(); schedule(); }, { passive: false });
     const act = (a) => {
+      if (a === 'toggle') { ctl.classList.toggle('min'); try { localStorage.setItem('mesa-camui', ctl.classList.contains('min') ? 'min' : 'open'); } catch (e) {} return; }
       if (a === 'left') cam.yaw -= 30; else if (a === 'right') cam.yaw += 30;
       else if (a === 'up') cam.pitch += 8; else if (a === 'down') cam.pitch -= 8;
       else if (a === 'in') cam.zoom *= 1.15; else if (a === 'out') cam.zoom /= 1.15;
@@ -410,7 +444,7 @@ ${grads}
       cam,
       draw(ctx) { last = ctx; render(performance.now()); first = false; },
       redraw: schedule,
-      destroy() { document.removeEventListener('keydown', onKey); svg.remove(); ctl.remove(); },
+      destroy() { document.removeEventListener('keydown', onKey); svg.remove(); sea.remove(); ctl.remove(); },
     };
   }
 

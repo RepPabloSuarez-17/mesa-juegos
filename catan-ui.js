@@ -174,7 +174,9 @@
     if (my && phase === 'roll') acts = `<button class="big primary" data-a="roll">🎲 ${T('a.roll')}</button>`;
     else if (my && (phase === 'main' || phase === 'special')) acts = `<button class="big primary" data-a="end">${phase === 'special' ? T('a.endSp') : T('a.end')} ➜</button>`;
     // Tarjeta grande en el centro cuando hay que pulsar un botón y no se necesita el tablero: tirar los dados o elegir a quién robar
-    const full = !!(my && (phase === 'roll' || i.steal));
+    const pk = phase + ':' + g.turn + ':' + g.rollId;
+    if (ui.popKey !== pk) { ui.popKey = pk; ui.popMin = false; }
+    const full = !!(my && (phase === 'roll' || i.steal)) && !ui.popMin;
     let steps = '';
     if (i.steps) {
       if (full && i.steps.items.length === 3) {
@@ -182,7 +184,7 @@
         steps = `<ol class="seq">${i.steps.items.map((t, k) => `<li class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i><div><b>${esc(t)}</b>${k === i.steps.on ? `<span>${esc(det[k])}</span>` : ''}</div></li>`).join('')}</ol>`;
       } else steps = `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i>${esc(t)}</span>`).join('')}</div>`;
     }
-    const html = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${full ? '' : steps}${full ? steps : ''}${extra}${acts ? `<div class="gacts">${acts}</div>` : ''}`;
+    const html = `${full ? `<button class="gmin" data-a="popmin" title="${T('pop.min')}">▾</button>` : ''}<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${full ? '' : steps}${full ? steps : ''}${extra}${acts ? `<div class="gacts">${acts}</div>` : ''}`;
     const top = $('#cg-guide'), mid = $('#cg-gfull');
     const key = (full ? 'F' : 'C') + html;
     if (ui.guideKey === key) return;
@@ -357,6 +359,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       case 'collect':
         if (!(g.myPend && g.myPend[id])) { pushToast('<span>' + esc(T('collect.none')) + '</span>'); return; }
         act({ t: 'collect', tile: id }); return;
+      case 'popmin': ui.popMin = true; ui.guideKey = ''; rerender(); return;
       case 'roll': if (myTurn() && g.phase === 'roll') act({ t: 'roll' }); return;
       case 'end': ui.mode = null; act({ t: 'end' }); return;
       case 'mode': ui.mode = ui.mode === k ? null : k; rerender(); return;
@@ -403,7 +406,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
 <aside id="cg-side"><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
     $('#cg').addEventListener('click', onClick);
-    ui.b3 = root.Catan3D.create($('#cg-boardwrap'), room.g.board, { labels: { left: T('cam.left'), right: T('cam.right'), up: T('cam.up'), down: T('cam.down'), in: T('cam.in'), out: T('cam.out'), flat: T('cam.flat'), reset: T('cam.reset'), hint: T('cam.hint') } });
+    ui.b3 = root.Catan3D.create($('#cg-boardwrap'), room.g.board, { labels: { left: T('cam.left'), right: T('cam.right'), up: T('cam.up'), down: T('cam.down'), in: T('cam.in'), out: T('cam.out'), flat: T('cam.flat'), reset: T('cam.reset'), hint: T('cam.hint'), toggle: T('cam.toggle') } });
   }
 
   function update(main, room, api) {
