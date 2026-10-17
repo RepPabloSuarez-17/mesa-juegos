@@ -400,3 +400,36 @@ button.mini:disabled { opacity: .4; cursor: default; }
 .gmin:hover { background: #ffffff25; }
 #cg-gfull { position: relative; }
 @media (max-width: 1100px) { #cg-guide { left: 12px; width: min(430px, calc(100% - 24px)); } }
+
+/* ===== Tarjeta de guía: otra vez a la derecha, pequeña ===== */
+#cg-side #cg-guide { position: static; transform: none; width: auto; min-width: 0; display: block !important; animation: none; padding: 10px 12px; border-radius: 12px; box-shadow: 0 4px 12px #0007, inset 0 1px 0 #ffffff1a; }
+#cg-side #cg-guide h3 { font-size: 16px; margin: 2px 0 3px; }
+#cg-side #cg-guide p { display: block; font-size: 12.5px; line-height: 1.35; }
+#cg-side #cg-guide .gk { font-size: 10px; }
+#cg-side #cg-guide .steps { margin-top: 7px; gap: 4px; }
+#cg-side #cg-guide .steps span { font-size: 10.5px; padding: 2px 7px 2px 3px; }
+#cg-side #cg-guide .gacts { margin-top: 9px; }
+#cg-side #cg-guide .gacts .big { font-size: 13.5px; padding: 8px 12px; }
+#cg-side #cg-offer { position: static; width: auto; box-shadow: 0 4px 12px #0007; }
+#cg-side { gap: 8px; }
+.gmin, #cg-mid, #cg-gfull { display: none !important; }
+
+/* ===== Avisos grandes en el centro del mapa ===== */
+#cg-big { position: absolute; left: 0; right: 0; top: 30%; z-index: 6; display: flex; justify-content: center; pointer-events: none; }
+.bigmsg { display: flex; align-items: center; gap: 18px; max-width: min(92%, 760px); padding: 16px 34px 16px 26px; border-radius: 18px; background: linear-gradient(180deg, #4a3520f2, #251a0df2); border: 2px solid #e6b85c; box-shadow: 0 16px 50px #000b, 0 0 36px #f0c86844, inset 0 1px 0 #ffffff22; animation: bigin .45s cubic-bezier(.2, 1.4, .4, 1); }
+.bigmsg i { font-style: normal; font-size: clamp(38px, 6vw, 64px); line-height: 1; filter: drop-shadow(0 3px 4px #000a); }
+.bigmsg b { display: block; font-family: var(--serif); font-size: clamp(26px, 4.2vw, 46px); line-height: 1.1; color: #fff3d2; text-shadow: 0 3px 10px #000c; letter-spacing: .02em; }
+.bigmsg span { display: block; margin-top: 5px; font-size: clamp(15px, 2vw, 21px); color: #e6cf9a; }
+.bigmsg.dice b { font-size: clamp(48px, 8vw, 84px); color: #f0c868; }
+.bigmsg.turn { border-color: #fff3c4; box-shadow: 0 16px 50px #000b, 0 0 44px #f0c868aa; }
+.bigmsg.turn b { color: #f0c868; }
+.bigmsg.dark { border-color: #d9603a; background: linear-gradient(180deg, #4a1e14f2, #250c07f2); }
+.bigmsg.dark b { color: #ffab84; }
+.bigmsg.gold { background: linear-gradient(180deg, #f6d57a, #d9a441); border-color: #7a5a18; }
+.bigmsg.gold b, .bigmsg.gold span { color: #2b1d12; text-shadow: none; }
+.bigmsg.small { padding: 10px 22px 10px 16px; gap: 12px; }
+.bigmsg.small b { font-size: clamp(18px, 2.6vw, 26px); }
+.bigmsg.small i { font-size: clamp(24px, 3.4vw, 34px); }
+.bigmsg.out { opacity: 0; transform: translateY(-12px) scale(.97); transition: opacity .35s, transform .35s; }
+@keyframes bigin { from { opacity: 0; transform: translateY(18px) scale(.8); } to { opacity: 1; transform: none; } }
+@media (max-width: 700px) { #cg-big { top: 22%; } .bigmsg { padding: 12px 18px 12px 14px; gap: 12px; } }

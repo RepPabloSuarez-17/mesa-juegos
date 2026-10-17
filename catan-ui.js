@@ -169,28 +169,15 @@
       const pend = Object.keys(g.discard).map((k) => `${esc(nameOf(+k))} (${g.discard[k]})`).join(', ');
       extra = `<p class="pend">${pend}</p>`;
     }
-    // Botón de la acción del momento (tirar / terminar turno)
     let acts = '';
     if (my && phase === 'roll') acts = `<button class="big primary" data-a="roll">🎲 ${T('a.roll')}</button>`;
     else if (my && (phase === 'main' || phase === 'special')) acts = `<button class="big primary" data-a="end">${phase === 'special' ? T('a.endSp') : T('a.end')} ➜</button>`;
-    // Tarjeta grande en el centro cuando hay que pulsar un botón y no se necesita el tablero: tirar los dados o elegir a quién robar
-    const pk = phase + ':' + g.turn + ':' + g.rollId;
-    if (ui.popKey !== pk) { ui.popKey = pk; ui.popMin = false; }
-    const full = !!(my && (phase === 'roll' || i.steal)) && !ui.popMin;
-    let steps = '';
-    if (i.steps) {
-      if (full && i.steps.items.length === 3) {
-        const det = [T('st.roll.d'), T('st.build.d'), T('st.end.d')];
-        steps = `<ol class="seq">${i.steps.items.map((t, k) => `<li class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i><div><b>${esc(t)}</b>${k === i.steps.on ? `<span>${esc(det[k])}</span>` : ''}</div></li>`).join('')}</ol>`;
-      } else steps = `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i>${esc(t)}</span>`).join('')}</div>`;
-    }
-    const html = `${full ? `<button class="gmin" data-a="popmin" title="${T('pop.min')}">▾</button>` : ''}<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${full ? '' : steps}${full ? steps : ''}${extra}${acts ? `<div class="gacts">${acts}</div>` : ''}`;
-    const top = $('#cg-guide'), mid = $('#cg-gfull');
-    const key = (full ? 'F' : 'C') + html;
-    if (ui.guideKey === key) return;
-    ui.guideKey = key;
-    top.innerHTML = full ? '' : html; top.classList.toggle('on', !full); top.classList.toggle('mine', my);
-    mid.innerHTML = full ? html : ''; mid.classList.toggle('on', full);
+    const steps = i.steps ? `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i>${esc(t)}</span>`).join('')}</div>` : '';
+    const html = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${steps}${extra}${acts ? `<div class="gacts">${acts}</div>` : ''}`;
+    if (ui.guideKey === html) return;
+    ui.guideKey = html;
+    const el = $('#cg-guide');
+    el.innerHTML = html; el.classList.toggle('mine', my);
   }
 
   function offerRow(o) {
@@ -239,31 +226,62 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
     ui.lastRoll = g.rollId;
   }
 
-  // ---------- avisos ----------
-  const TOAST = { special: 1, short: 1, roll: 1, robber: 1, steal: 1, knight: 1, longest: 1, army: 1, trade: 1, offer: 1, win: 1, produce: 1, playMonopoly: 1, playPlenty: 1, discard: 1 };
-  function pushToast(txt, cls) {
+  // ---------- avisos grandes en el centro del tablero ----------
+  const ICON = { roll: '🎲', build: '🏗️', setupSettle: '🏠', setupRoad: '🛣️', buyDev: '🃏', trade: '🤝', bank: '🏦', offer: '💬', robber: '🦹', steal: '🫳', knight: '⚔️', longest: '🛣️', army: '🛡️', win: '🏆', discard: '✋', playMonopoly: '💰', playPlenty: '🎁', playRoads: '🛣️', special: '🔔', short: '⚠️' };
+  const ANN = { roll: 1, build: 1, setupSettle: 1, setupRoad: 1, buyDev: 1, trade: 1, bank: 1, offer: 1, robber: 1, steal: 1, knight: 1, longest: 1, army: 1, win: 1, discard: 1, playMonopoly: 1, playPlenty: 1, playRoads: 1, short: 1, special: 1 };
+  function announce(o) { // { icon, title, sub, cls, ms }
+    const q = ui.annQ = ui.annQ || [];
+    q.push(o);
+    while (q.length > 4) { const k = q.findIndex((x) => !x.keep); q.splice(k < 0 ? 0 : k, 1); }
+    if (!ui.annBusy) nextAnn();
+  }
+  function nextAnn() {
+    const box = $('#cg-big');
+    const o = (ui.annQ || []).shift();
+    if (!o || !box) { ui.annBusy = false; return; }
+    ui.annBusy = true;
+    const d = document.createElement('div');
+    d.className = 'bigmsg ' + (o.cls || '');
+    d.innerHTML = `${o.icon ? `<i>${o.icon}</i>` : ''}<div><b>${esc(o.title)}</b>${o.sub ? `<span>${esc(o.sub)}</span>` : ''}</div>`;
+    box.innerHTML = ''; box.appendChild(d);
+    const ms = o.ms || 2300;
+    setTimeout(() => { d.classList.add('out'); setTimeout(() => { if (d.parentNode) d.remove(); nextAnn(); }, 350); }, ms);
+  }
+  function pushToast(txt, cls) { // aviso pequeño (errores y avisos puntuales)
     const box = $('#cg-toasts'), d = document.createElement('div');
     d.className = 'ev ' + (cls || '');
     d.innerHTML = txt;
     box.appendChild(d);
     while (box.children.length > 3) box.removeChild(box.firstChild);
-    setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 4200);
+    setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 400); }, 3200);
   }
   function processEvents(g) {
     const fresh = g.log.filter((e) => e.s > ui.lastSeq);
     if (ui.lastSeq >= 0 && ui.started) {
       fresh.forEach((e) => {
-        if (!TOAST[e.k]) return;
-        if (e.k === 'produce' && e.p !== g.me && !ui.api.local) return;
+        if (!ANN[e.k]) return;
+        const txt = logText(e);
         if (e.k === 'roll') {
-          if (e.d1 + e.d2 === 7) { pushToast(`<b>${T('g.robber')}</b><span>${esc(logText(e))}</span>`, 'dark'); sfx.robber(); }
+          const sum = e.d1 + e.d2;
+          if (sum === 7) { announce({ icon: '🦹', title: T('an.robber'), sub: txt, cls: 'dark', ms: 2600 }); sfx.robber(); }
+          else announce({ icon: '🎲', title: String(sum), sub: txt, cls: 'dice', ms: 1900 });
           return;
         }
-        pushToast(`<span>${esc(logText(e))}</span>`, e.k === 'win' ? 'gold' : '');
+        const setup = e.k === 'setupSettle' || e.k === 'setupRoad';
+        announce({ icon: ICON[e.k], title: txt, cls: e.k === 'win' ? 'gold' : (setup ? 'small' : ''), ms: setup ? 1500 : (e.k === 'win' ? 6000 : 2300), keep: e.k === 'win' });
         if (e.k === 'longest' || e.k === 'army' || e.k === 'win') sfx.ping();
       });
       if (fresh.some((e) => e.k === 'build' || e.k === 'setupSettle' || e.k === 'setupRoad')) sfx.build();
-    }
+      // qué le toca hacer a quien tiene que actuar
+      const my = myTurn(), key = g.phase + ':' + g.turn + ':' + (g.setup ? g.setup.stage + g.setup.step : '') + ':' + (g.discard && g.discard[g.me] ? 'd' : '');
+      if (key !== ui.turnKey && g.phase !== 'over') {
+        const i = guideInfo(g), cur = nameOf(g.turn);
+        if (g.phase === 'roll') announce(my ? { icon: '⭐', title: T('an.yourTurn'), sub: T('an.roll'), cls: 'turn', ms: 2200 } : { icon: '⏳', title: T('an.turnOf', { name: cur }), cls: 'small', ms: 1500 });
+        else if (g.phase === 'discard' && g.discard[g.me]) announce({ icon: '✋', title: i.title, sub: i.text, cls: 'turn', ms: 2600 });
+        else if (my && (g.phase === 'robber' || g.phase === 'steal' || g.phase === 'roadbuilding' || g.phase === 'special' || g.phase === 'setup')) announce({ icon: ICON[g.phase === 'setup' ? (g.setup.stage === 'settlement' ? 'setupSettle' : 'setupRoad') : g.phase] || '👉', title: i.title, sub: g.phase === 'setup' ? '' : i.text, cls: 'turn', ms: g.phase === 'setup' ? 1800 : 2600 });
+      }
+      ui.turnKey = key;
+    } else ui.turnKey = g.phase + ':' + g.turn + ':' + (g.setup ? g.setup.stage + g.setup.step : '') + ':' + (g.discard && g.discard[g.me] ? 'd' : '');
     ui.lastSeq = g.seq;
     ui.started = true;
   }
@@ -397,13 +415,13 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       const d = document.createElement('div'); d.id = 'cg-symbols'; d.innerHTML = SYMBOLS; document.body.appendChild(d);
     }
     if (ui.b3) { try { ui.b3.destroy(); } catch (e) {} ui.b3 = null; }
-    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '' });
+    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '', annQ: [], annBusy: false, turnKey: '' });
     main.innerHTML = `<div id="cg">
 <div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
-<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-guide" class="gpop"></div><div id="cg-mid"><div id="cg-gfull" class="gpop full"></div><div id="cg-offer" class="parch"></div></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
+<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-big"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
 <div id="cg-bottom"><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
-<aside id="cg-side"><div id="cg-log"></div></aside></div>
+<aside id="cg-side"><div id="cg-guide" class="gpop"></div><div id="cg-offer" class="parch"></div><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
     $('#cg').addEventListener('click', onClick);
     ui.b3 = root.Catan3D.create($('#cg-boardwrap'), room.g.board, { labels: { left: T('cam.left'), right: T('cam.right'), up: T('cam.up'), down: T('cam.down'), in: T('cam.in'), out: T('cam.out'), flat: T('cam.flat'), reset: T('cam.reset'), hint: T('cam.hint'), toggle: T('cam.toggle') } });
