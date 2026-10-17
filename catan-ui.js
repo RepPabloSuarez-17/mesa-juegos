@@ -80,8 +80,8 @@
     $('#cg-players').innerHTML = `<h4>${T('settlers')}</h4>` + room.players.map((pl, i) => {
       const pp = g.players[i], you = i === g.me, vp = you || g.phase === 'over' ? pp.total : pp.pub, turn = g.turn === i && g.phase !== 'over';
       const bd = (g.longest.o === i ? `<span class="badge" title="${T('badge.road')}">${ic('road', 14)}${T('badge.road')}</span>` : '') + (g.army.o === i ? `<span class="badge" title="${T('badge.army')}">${ic('knight', 14)}${T('badge.army')}</span>` : '');
-      return `<div class="pcard ${turn ? 'turn' : ''}" style="--pc:${pl.color}"><div class="av">${esc(pl.name.charAt(0).toUpperCase())}</div>
-<div class="pinfo"><div class="pname">${esc(pl.name)}${you && !ui.api.local ? ` <em>(${T('you')})</em>` : ''}</div>
+      return `<div class="pcard ${turn ? 'turn' : ''} ${pl.online === false ? 'off' : ''}" style="--pc:${pl.color}"><div class="av">${esc(pl.name.charAt(0).toUpperCase())}</div>
+<div class="pinfo"><div class="pname">${esc(pl.name)}${pl.online === false ? ` <em class="offl">⚠ ${T('pl.offline')}</em>` : ''}${you && !ui.api.local ? ` <em>(${T('you')})</em>` : ''}</div>
 <div class="pstats"><span title="${T('cards')}">${ic('card', 16)}${pp.res ? Object.values(pp.res).reduce((a, b) => a + b, 0) : pp.resN}</span><span title="${T('devc')}">${ic('dev', 16)}${pp.devN}</span><span title="${T('knights')}">${ic('knight', 16)}${pp.knights}</span><span title="${T('roadlen')}">${ic('road', 16)}${pp.len}</span></div>${bd ? `<div class="badges">${bd}</div>` : ''}</div>
 <div class="pvp"><b>${vp}</b><small>${T('vp')}</small></div></div>`;
     }).join('') + `<div class="bankbox"><h4>${T('bank')}</h4><div class="bk">${RES.map((r) => `<span title="${T('res.' + r)}">${ic(r, 18)}<b>${g.bank[r]}</b></span>`).join('')}<span title="${T('deck')}">${ic('dev', 18)}<b>${g.deckN}</b></span></div>${g.ext ? `<p class="extnote">${T('ext.on')}</p>` : ''}</div>`;
@@ -110,10 +110,6 @@
       bt('dev', 'dev', build && aff(COST.dev) && g.deckN > 0, `<small class="deckn">${g.deckN}</small>`);
 
     $('#cg-tradebar').innerHTML = `<span class="tl">${T('a.trade')}</span><button data-a="trade" data-k="bank" ${main ? '' : 'disabled'}>🏦 ${T('tr.bank')}</button><button data-a="trade" data-k="players" ${main ? '' : 'disabled'}>🤝 ${T('tr.players')}</button>`;
-    const roll = my && g.phase === 'roll', end = build;
-    $('#cg-actions').innerHTML =
-      (roll ? `<button class="big primary" data-a="roll">${T('a.roll')}</button>` : '') +
-      `<button class="big ${end ? 'primary' : ''}" data-a="end" ${end ? '' : 'disabled'}>${g.phase === 'special' ? T('a.endSp') : T('a.end')}</button>`;
   }
 
   // Pistas sutiles según el momento de la partida. No se menciona nunca recoger recursos: eso lo debe notar el jugador.
@@ -121,7 +117,8 @@
     const my = myTurn(), cur = nameOf(g.turn), me = g.players[g.me], have = me.res || {};
     const COST = root.CatanEngine.COST, LIM = root.CatanEngine.LIMIT, u = me.used;
     const aff = (c) => Object.keys(c).every((k) => (have[k] || 0) >= c[k]);
-    const wait = (extra) => ({ kick: cur, title: T('g.wait', { name: cur }), text: extra || T('g.wait.d') });
+    const offl = ui.room && ui.room.players[g.turn] && ui.room.players[g.turn].online === false;
+    const wait = (extra) => ({ kick: cur, title: T('g.wait', { name: cur }), text: offl ? T('g.offline') : (extra || T('g.wait.d')) });
     const L = g.legal || {};
     switch (g.phase) {
       case 'setup': {
@@ -165,15 +162,33 @@
   }
 
   function renderGuide(g, room) {
-    const i = guideInfo(g);
+    const i = guideInfo(g), my = myTurn(), phase = g.phase;
     let extra = '';
     if (i.steal) extra = `<div class="stealrow">${(g.victims || []).map((v) => `<button class="pbtn" style="--pc:${room.players[v].color}" data-a="steal" data-id="${v}">${esc(room.players[v].name)}</button>`).join('')}</div>`;
-    if (g.phase === 'discard') {
+    if (phase === 'discard') {
       const pend = Object.keys(g.discard).map((k) => `${esc(nameOf(+k))} (${g.discard[k]})`).join(', ');
       extra = `<p class="pend">${pend}</p>`;
     }
-    const steps = i.steps ? `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k + 1}</i>${esc(t)}</span>`).join('')}</div>` : '';
-    $('#cg-guide').innerHTML = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${steps}${extra}`;
+    // Botón de la acción del momento (tirar / terminar turno)
+    let acts = '';
+    if (my && phase === 'roll') acts = `<button class="big primary" data-a="roll">🎲 ${T('a.roll')}</button>`;
+    else if (my && (phase === 'main' || phase === 'special')) acts = `<button class="big primary" data-a="end">${phase === 'special' ? T('a.endSp') : T('a.end')} ➜</button>`;
+    // Tarjeta grande en el centro cuando hay que pulsar un botón y no se necesita el tablero: tirar los dados o elegir a quién robar
+    const full = !!(my && (phase === 'roll' || i.steal));
+    let steps = '';
+    if (i.steps) {
+      if (full && i.steps.items.length === 3) {
+        const det = [T('st.roll.d'), T('st.build.d'), T('st.end.d')];
+        steps = `<ol class="seq">${i.steps.items.map((t, k) => `<li class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i><div><b>${esc(t)}</b>${k === i.steps.on ? `<span>${esc(det[k])}</span>` : ''}</div></li>`).join('')}</ol>`;
+      } else steps = `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k < i.steps.on ? '✔' : k + 1}</i>${esc(t)}</span>`).join('')}</div>`;
+    }
+    const html = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${full ? '' : steps}${full ? steps : ''}${extra}${acts ? `<div class="gacts">${acts}</div>` : ''}`;
+    const top = $('#cg-guide'), mid = $('#cg-gfull');
+    const key = (full ? 'F' : 'C') + html;
+    if (ui.guideKey === key) return;
+    ui.guideKey = key;
+    top.innerHTML = full ? '' : html; top.classList.toggle('on', !full); top.classList.toggle('mine', my);
+    mid.innerHTML = full ? html : ''; mid.classList.toggle('on', full);
   }
 
   function offerRow(o) {
@@ -379,13 +394,13 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       const d = document.createElement('div'); d.id = 'cg-symbols'; d.innerHTML = SYMBOLS; document.body.appendChild(d);
     }
     if (ui.b3) { try { ui.b3.destroy(); } catch (e) {} ui.b3 = null; }
-    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '' });
+    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '' });
     main.innerHTML = `<div id="cg">
 <div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
-<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
+<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-guide" class="gpop"></div><div id="cg-mid"><div id="cg-gfull" class="gpop full"></div><div id="cg-offer" class="parch"></div></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
 <div id="cg-bottom"><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
-<aside id="cg-side"><div id="cg-guide" class="parch"></div><div id="cg-actions"></div><div id="cg-offer" class="parch"></div><div id="cg-log"></div></aside></div>
+<aside id="cg-side"><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
     $('#cg').addEventListener('click', onClick);
     ui.b3 = root.Catan3D.create($('#cg-boardwrap'), room.g.board, { labels: { left: T('cam.left'), right: T('cam.right'), up: T('cam.up'), down: T('cam.down'), in: T('cam.in'), out: T('cam.out'), flat: T('cam.flat'), reset: T('cam.reset'), hint: T('cam.hint') } });

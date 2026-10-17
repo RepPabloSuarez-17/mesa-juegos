@@ -20,7 +20,9 @@
     if (this.started) return 'net.started';
     if (this.players.length >= (MAX_PLAYERS[this.game] || 4)) return 'net.full';
     const used = new Set(this.players.map((p) => p.color));
-    this.players.push({ id, name: cleanName(name), color: COLORS.find((c) => !used.has(c)) });
+    let nm = cleanName(name), k = 2;
+    while (this.players.some((p) => p.name.toLowerCase() === nm.toLowerCase())) nm = cleanName(name).slice(0, 17) + ' ' + k++; // nombres únicos: se usan para volver a la partida
+    this.players.push({ id, name: nm, color: COLORS.find((c) => !used.has(c)), online: true });
     if (!this.hostId) this.hostId = id;
     return null;
   };
@@ -28,9 +30,32 @@
   MesaRoom.prototype.remove = function (id) {
     const p = this.players.find((x) => x.id === id);
     if (!p) return;
-    if (this.started) { if (!this.aborted) this.aborted = p.name; return; }
+    if (this.started) { p.online = false; return; } // en partida: se queda su sitio, puede volver
     this.players = this.players.filter((x) => x.id !== id);
     if (this.hostId === id && this.players.length) this.hostId = this.players[0].id;
+  };
+
+  // Reconexión en partida: por id estable o, si no, por nombre entre los desconectados. Devuelve el id del jugador o null.
+  MesaRoom.prototype.rejoin = function (cid, name) {
+    if (!this.started) return null;
+    const nm = cleanName(name).toLowerCase();
+    const p = this.players.find((x) => x.id === cid) || this.players.find((x) => !x.online && x.name.toLowerCase() === nm);
+    if (!p) return null;
+    p.online = true;
+    return p.id;
+  };
+
+  // Foto de la sala para poder reanudarla si el anfitrión recarga la página.
+  MesaRoom.prototype.snapshot = function () {
+    if (!this.started || !this.engine) return null;
+    return { code: this.code, game: this.game, hostId: this.hostId, players: this.players, engine: { ids: this.engine.ids, board: this.engine.board, s: this.engine.s } };
+  };
+  MesaRoom.restore = function (snap, deps) {
+    const r = new MesaRoom(snap.code, snap.game, deps);
+    r.hostId = snap.hostId; r.started = true;
+    r.players = snap.players.map((p) => Object.assign({}, p, { online: p.id === snap.hostId }));
+    r.engine = deps.restoreEngine(snap.engine);
+    return r;
   };
 
   MesaRoom.prototype.handle = function (id, m) {
