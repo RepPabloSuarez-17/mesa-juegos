@@ -109,10 +109,10 @@
       bt('city', 'city', build && aff(COST.city) && u.city < LIM.city && (L.city || []).length) +
       bt('dev', 'dev', build && aff(COST.dev) && g.deckN > 0, `<small class="deckn">${g.deckN}</small>`);
 
+    $('#cg-tradebar').innerHTML = `<span class="tl">${T('a.trade')}</span><button data-a="trade" data-k="bank" ${main ? '' : 'disabled'}>🏦 ${T('tr.bank')}</button><button data-a="trade" data-k="players" ${main ? '' : 'disabled'}>🤝 ${T('tr.players')}</button>`;
     const roll = my && g.phase === 'roll', end = build;
     $('#cg-actions').innerHTML =
       (roll ? `<button class="big primary" data-a="roll">${T('a.roll')}</button>` : '') +
-      `<button class="big" data-a="trade" ${main ? '' : 'disabled'}>${T('a.trade')}</button>` +
       `<button class="big ${end ? 'primary' : ''}" data-a="end" ${end ? '' : 'disabled'}>${g.phase === 'special' ? T('a.endSp') : T('a.end')}</button>`;
   }
 
@@ -354,7 +354,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       case 'spot-e': act({ t: 'build', kind: 'road', id }); if (g.phase === 'main' || g.phase === 'special') ui.mode = null; return;
       case 'spot-t': act({ t: 'moveRobber', tile: id }); return;
       case 'steal': act({ t: 'steal', from: id }); return;
-      case 'trade': ui.modal = 'trade'; ui.tab = 'bank'; rerender(); return;
+      case 'trade': ui.modal = 'trade'; ui.tab = el.dataset.k === 'players' ? 'players' : 'bank'; rerender(); return;
       case 'tab': ui.tab = k; rerender(); return;
       case 'bgive': ui.bankGive = r; rerender(); return;
       case 'bget': ui.bankGet = r; rerender(); return;
@@ -383,7 +383,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     main.innerHTML = `<div id="cg">
 <div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
-<section id="cg-center"><div id="cg-boardwrap"><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
+<section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
 <div id="cg-bottom"><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
 <aside id="cg-side"><div id="cg-guide" class="parch"></div><div id="cg-actions"></div><div id="cg-offer" class="parch"></div><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
