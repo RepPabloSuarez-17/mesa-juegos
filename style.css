@@ -433,3 +433,24 @@ button.mini:disabled { opacity: .4; cursor: default; }
 .bigmsg.out { opacity: 0; transform: translateY(-12px) scale(.97); transition: opacity .35s, transform .35s; }
 @keyframes bigin { from { opacity: 0; transform: translateY(18px) scale(.8); } to { opacity: 1; transform: none; } }
 @media (max-width: 700px) { #cg-big { top: 22%; } .bigmsg { padding: 12px 18px 12px 14px; gap: 12px; } }
+
+/* Partida local en una pantalla */
+.locrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.locrow input { flex: 1; margin: 0; }
+.locrow .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1b1208; flex: none; }
+label.chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin: 10px 0 4px; cursor: pointer; }
+label.chk input { width: auto; margin-top: 3px; }
+#cg-bottom { position: relative; }
+#cg-bottom.veiled #cg-hand, #cg-bottom.veiled #cg-dev { filter: blur(12px) brightness(.45); pointer-events: none; user-select: none; }
+#cg-eye { position: absolute; z-index: 3; left: 12px; bottom: 8px; padding: 7px 14px; border-radius: 10px; border: 1px solid #e6b85c99; background: linear-gradient(180deg, #7a5530, #4a3119); color: #f6e9cc; font-weight: 700; cursor: pointer; font-size: 13px; }
+#cg-bottom.veiled #cg-eye { left: 50%; top: 50%; bottom: auto; transform: translate(-50%, -50%); padding: 14px 26px; font-size: 18px; background: linear-gradient(180deg, #f0c868, #d9a441); color: #2b1d12; box-shadow: 0 8px 24px #000a; }
+
+/* Voz */
+#cg-voice { position: absolute; left: 12px; top: 12px; z-index: 6; display: none; align-items: center; gap: 8px; padding: 8px 12px; max-width: min(430px, 55%); background: rgba(24, 17, 10, .92); border: 1px solid #e6b85c; border-radius: 12px; box-shadow: 0 6px 18px #000a; color: #f6e9cc; font-size: 14px; }
+#cg-voice.on { display: flex; }
+#cg-voice .vmic { animation: pulse 1.2s ease-in-out infinite; }
+#cg-voice .vmsg.bad { color: #ffb27a; }
+#cg-voice button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #e6b85c99; background: #ffffff14; color: #f0c868; cursor: pointer; font-weight: 800; }
+.topbtns button.micon { background: #b3261a66; border-color: #ff8a6c; }
+.vhelp ul { margin: 6px 0; padding-left: 18px; font-size: 14px; line-height: 1.55; }
+.vhelp li { margin-bottom: 3px; }
