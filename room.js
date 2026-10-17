@@ -1,7 +1,7 @@
 // Lógica de una sala. La ejecuta SOLO el navegador del anfitrión (es el "servidor").
 (function (root) {
   const COLORS = ['#d8402f', '#3a78d6', '#f0a02a', '#ece6d6', '#3fa361', '#9b59b6'];
-  const MAX_PLAYERS = { catan: 6, catan2: 4 };
+  const MAX_PLAYERS = { catan: 6, catan2: 6 };
   const cleanName = (n) => String(n || 'Jugador').replace(/[<>]/g, '').trim().slice(0, 20) || 'Jugador';
 
   function MesaRoom(code, game, deps) {
@@ -43,6 +43,11 @@
       return null;
     }
     if (!this.started || this.aborted) return null;
+    // Ajuste de sala: recolección automática de recursos (solo el anfitrión)
+    if (m.t === 'auto') {
+      if (id === this.hostId && this.engine.setAuto) this.engine.setAuto(!!m.v);
+      return null;
+    }
     return this.engine.act(id, m);
   };
 

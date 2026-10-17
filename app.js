@@ -24,7 +24,7 @@
     toast.t = setTimeout(() => t.classList.remove('show'), 2800);
   }
 
-  const makeEngine = (ids, game) => (game === 'catan2' ? new CatanEngine.CatanGame(ids, CatanBoard.generateBoard()) : new CatanSimple.Game(ids, CatanBoard.generateBoard()));
+  const makeEngine = (ids, game) => (game === 'catan2' ? new CatanEngine.CatanGame(ids, CatanBoard.generateBoard(ids.length)) : new CatanSimple.Game(ids, CatanBoard.generateBoard()));
   const newRoom = (code, game) => new MesaRoom(code, game, { makeEngine });
 
   // ---------- Red (PeerJS) ----------
@@ -144,6 +144,7 @@
     const room = newRoom('LOCL', state.game);
     for (let i = 0; i < n; i++) room.add('L' + i, (I18N.lang === 'en' ? 'Player ' : 'Jugador ') + (i + 1));
     room.handle('L0', { t: 'start' });
+    if (room.engine && room.engine.setAuto) room.engine.setAuto(true); // en partida local los recursos se reparten solos
     net.room = room; net.role = 'local';
     broadcast();
   }
@@ -195,7 +196,7 @@
     renderMenu();
     const r = state.room, playing = !!(r && r.started && r.g), full = playing && r.game === 'catan2';
     if (full !== inGame) { inGame = full; $('#sidebar').classList.toggle('closed', full); }
-    if (full) return CatanUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local' });
+    if (full) return CatanUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local', isHost: r.hostId === state.myId });
     if (playing) return CatanSimple.render(main, r, { send, leave });
     if (r) return renderWaiting();
     if (!state.game) return renderHome();
@@ -215,7 +216,7 @@
       <p style="margin-bottom:0">${T('lobby.or')}</p>
       <div class="row"><input id="code" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" value="${esc(params.get('sala') || '')}"><button class="btn" id="join">${T('lobby.join')}</button></div>
       <p class="hint">${T('lobby.host')}</p>
-      ${g.local ? `<hr><p style="margin-bottom:0"><b>${T('lobby.local')}</b></p><div class="row"><select id="nloc"><option>2</option><option selected>3</option><option>4</option></select><span>${T('lobby.localN')}</span><button class="btn" id="local">${T('lobby.localGo')}</button></div>` : ''}
+      ${g.local ? `<hr><p style="margin-bottom:0"><b>${T('lobby.local')}</b></p><div class="row"><select id="nloc"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select><span>${T('lobby.localN')}</span><button class="btn" id="local">${T('lobby.localGo')}</button></div>` : ''}
     </div>`;
     const name = () => { const n = $('#name').value.trim(); if (!n) { toast('lobby.needName'); return null; } try { localStorage.setItem('mesa-name', n); } catch (e) {} return n; };
     $('#create').onclick = () => { const n = name(); if (n) createRoom(n); };
@@ -231,6 +232,7 @@
       <h1>${T('wait.title')}</h1><p>${T('wait.share')}</p>
       <div class="code">${esc(r.code)}</div>
       <input readonly value="${esc(link)}" onclick="this.select()">
+      ${r.game === 'catan2' ? `<p class="hint">${T('wait.ext')}</p>` : ''}
       <ul class="plist">${r.players.map((p) => `<li><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === r.hostId ? ' 👑' : ''}</li>`).join('')}</ul>
       <div class="row">
         ${isHost ? `<button class="btn alt" id="start" ${r.players.length < 2 ? 'disabled' : ''}>${T('wait.start')}</button>` : `<span>${T('wait.host')}</span>`}

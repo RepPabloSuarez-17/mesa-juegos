@@ -3,8 +3,7 @@
   const T = (k, p) => root.I18N.t(k, p);
   const Board = root.CatanBoard;
   const RES = Board.RES;
-  const SZ = 60;
-  const COL = { wood: '#3b7a45', brick: '#c0583a', wool: '#9ccf63', grain: '#e8c04b', ore: '#8d95a2', desert: '#e2cf99' };
+    const COL = { wood: '#3b7a45', brick: '#c0583a', wool: '#9ccf63', grain: '#e8c04b', ore: '#8d95a2', desert: '#e2cf99' };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ic = (n, s) => `<svg class="ic" width="${s || 22}" height="${s || 22}"><use href="#i-${n}"/></svg>`;
   const $ = (s, el) => (el || document).querySelector(s);
@@ -28,7 +27,7 @@
 </defs></svg>`;
 
   const ui = { code: null, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} },
-    dc: null, plenty: [], lastRoll: 0, lastSeq: -1, seen: new Set(), sound: true, api: null, room: null, g: null, boardKey: '' };
+    dc: null, plenty: [], lastRoll: 0, lastSeq: -1, sound: true, api: null, room: null, g: null, b3: null, rule: 0, modalKey: '' };
   try { ui.sound = localStorage.getItem('mesa-sound') !== '0'; } catch (e) {}
 
   // ---------- sonido ----------
@@ -50,156 +49,18 @@
     robber: () => { beep(110, 0.35, 'sawtooth', 0.05); beep(82, 0.4, 'sawtooth', 0.05, 0.15); },
   };
 
-  // ---------- utilidades de dibujo ----------
-  const hexPts = (cx, cy, r) => Array.from({ length: 6 }, (_, i) => {
-    const a = Math.PI / 180 * (60 * i - 30);
-    return (cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a)).toFixed(1);
-  }).join(' ');
-  function rng(seed) {
-    return function () {
-      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
-      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  const tilePos = (t) => { const c = Board.hexCenter(t); return { x: c.x * SZ, y: c.y * SZ }; };
-
-  function decor(res, r) {
-    let s = '';
-    const pts = (n, minD) => {
-      const out = []; let tries = 0;
-      while (out.length < n && tries < 300) {
-        tries++;
-        const a = r() * 6.283, d = (0.4 + r() * 0.38) * SZ, x = Math.cos(a) * d, y = Math.sin(a) * d * 0.92;
-        if (out.every((p) => Math.hypot(p.x - x, p.y - y) > minD)) out.push({ x, y });
-      }
-      return out;
-    };
-    if (res === 'wood') {
-      pts(10, 13).sort((a, b) => a.y - b.y).forEach((p) => {
-        const k = 0.75 + r() * 0.5;
-        s += `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) scale(${k.toFixed(2)})"><ellipse cy="10" rx="8" ry="2.5" fill="rgba(0,0,0,.25)"/><rect x="-1.6" y="5" width="3.2" height="6" fill="#4b2e17"/><polygon points="0,-13 8,-1 -8,-1" fill="#1d5a2d"/><polygon points="0,-7 10,7 -10,7" fill="#2e8040"/></g>`;
-      });
-    } else if (res === 'wool') {
-      pts(7, 17).sort((a, b) => a.y - b.y).forEach((p) => {
-        const k = 0.9 + r() * 0.35, f = r() < 0.5 ? 1 : -1;
-        s += `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) scale(${(k * f).toFixed(2)},${k.toFixed(2)})"><ellipse cy="5" rx="8" ry="2.5" fill="rgba(0,0,0,.22)"/><ellipse rx="7.5" ry="5.2" fill="#f7f4ea" stroke="#c4bea8" stroke-width=".8"/><circle cx="6.5" cy="-1" r="2.7" fill="#3a3834"/><rect x="-4" y="3" width="1.8" height="3.6" fill="#3a3834"/><rect x="2.5" y="3" width="1.8" height="3.6" fill="#3a3834"/></g>`;
-      });
-    } else if (res === 'grain') {
-      for (let k = -6; k <= 6; k++) {
-        s += `<line x1="${k * 10}" y1="-60" x2="${k * 10}" y2="60" stroke="#b98a22" stroke-width="3.2" opacity=".35"/>`;
-        s += `<line x1="${k * 10 + 3}" y1="-60" x2="${k * 10 + 3}" y2="60" stroke="#fff3b8" stroke-width="2" stroke-dasharray="2 5" opacity=".55"/>`;
-      }
-    } else if (res === 'brick') {
-      pts(9, 15).sort((a, b) => a.y - b.y).forEach((p) => {
-        const k = 0.8 + r() * 0.5;
-        s += `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) scale(${k.toFixed(2)})"><path d="M-11 5 Q0 -12 11 5 Z" fill="#a7472a" stroke="#6f2a16" stroke-width="1"/><path d="M-6 3 Q0 -6 5 -1" fill="none" stroke="#e08a62" stroke-width="1.6" opacity=".8"/></g>`;
-      });
-    } else if (res === 'ore') {
-      pts(5, 24).sort((a, b) => a.y - b.y).forEach((p) => {
-        const k = 0.9 + r() * 0.5;
-        s += `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) scale(${k.toFixed(2)})"><ellipse cy="9" rx="13" ry="3" fill="rgba(0,0,0,.22)"/><polygon points="0,-17 13,9 -13,9" fill="#838b98" stroke="#3b4350" stroke-width="1"/><polygon points="0,-17 13,9 4,9" fill="#5d6572"/><polygon points="0,-17 5,-6 0,-8 -5,-5" fill="#f4f6fa"/></g>`;
-      });
-    } else if (res === 'desert') {
-      [-28, -12, 6, 24].forEach((y, i) => { s += `<path d="M-40 ${y} Q-20 ${y - 9} 0 ${y} T40 ${y}" fill="none" stroke="${i % 2 ? '#f6eac0' : '#bfa465'}" stroke-width="2.2" opacity=".75"/>`; });
-      s += `<g transform="translate(-26,18)"><rect x="-1.8" y="-8" width="3.6" height="15" rx="1.8" fill="#4e8c49"/><rect x="-7" y="-3" width="3" height="7" rx="1.5" fill="#4e8c49"/><rect x="4" y="-5" width="3" height="7" rx="1.5" fill="#4e8c49"/></g>`;
-    }
-    return s;
-  }
-
-  function boardStatic(g) {
-    const G = Board.buildGraph(g.board.tiles);
-    let s = `<defs>
-<radialGradient id="seaG" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="900"><stop offset="0" stop-color="#2d9aa0"/><stop offset=".6" stop-color="#1c7380"/><stop offset="1" stop-color="#104552"/></radialGradient>
-${[['wood', '#478a4f', '#245a2e'], ['brick', '#d4704a', '#a24a2c'], ['wool', '#a6d86b', '#71ac45'], ['grain', '#f3d062', '#cfa23a'], ['ore', '#adb4bf', '#737c89'], ['desert', '#f0e1b0', '#cdb87c']]
-    .map((a) => `<radialGradient id="gr-${a[0]}" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="${a[1]}"/><stop offset="1" stop-color="${a[2]}"/></radialGradient>`).join('')}
-<filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="3" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .1  0 0 0 0 .07  0 0 0 0 .03  0 0 0 .55 -.12"/><feComposite in2="SourceAlpha" operator="in"/></filter>
-<filter id="shd" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity=".45"/></filter>
-<clipPath id="hexclip"><polygon points="${hexPts(0, 0, SZ - 2)}"/></clipPath>
-</defs>`;
-    s += `<rect x="-1800" y="-1500" width="3600" height="3000" fill="url(#seaG)"/>`;
-    const w = rng(11);
-    for (let i = 0; i < 220; i++) {
-      const x = -900 + w() * 1800, y = -700 + w() * 1400;
-      s += `<path d="M${x.toFixed(0)} ${y.toFixed(0)} q8 -5 16 0 t16 0" fill="none" stroke="#fff" stroke-width="1.4" opacity="${(0.06 + w() * 0.12).toFixed(2)}"/>`;
-    }
-    // base de la isla (grosor)
-    g.board.tiles.forEach((t) => { const p = tilePos(t); s += `<polygon points="${hexPts(p.x, p.y + 13, SZ + 1)}" fill="#241709"/>`; });
-    g.board.tiles.forEach((t) => { const p = tilePos(t); s += `<polygon points="${hexPts(p.x, p.y + 8, SZ)}" fill="#4a3522" stroke="#2c1e12" stroke-width="2"/>`; });
-    // caras superiores
-    g.board.tiles.forEach((t, i) => {
-      const p = tilePos(t), r = rng(i * 7919 + 13);
-      s += `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})"><polygon points="${hexPts(0, 0, SZ - 1)}" fill="url(#gr-${t.res})" stroke="#2c1e12" stroke-width="2.4"/>`;
-      s += `<g clip-path="url(#hexclip)">${decor(t.res, r)}</g>`;
-      s += `<polygon points="${hexPts(0, 0, SZ - 1)}" fill="#000" filter="url(#grain)" opacity=".55"/>`;
-      s += `<polygon points="${hexPts(0, 0, SZ - 5)}" fill="none" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/>`;
-      if (t.num) {
-        const hot = t.num === 6 || t.num === 8, dots = 6 - Math.abs(7 - t.num);
-        s += `<g filter="url(#shd)"><circle r="18" fill="#f4e8c8" stroke="#6b4a24" stroke-width="2"/><circle r="15" fill="none" stroke="#c9b37a" stroke-width=".8"/></g>`;
-        s += `<text y="3" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t.num > 9 ? 17 : 19}" fill="${hot ? '#b3261a' : '#2b1d12'}">${t.num}</text>`;
-        s += `<text y="12.5" text-anchor="middle" font-size="6.5" letter-spacing="1" fill="${hot ? '#b3261a' : '#2b1d12'}">${'●'.repeat(dots)}</text>`;
-      }
-      s += '</g>';
-    });
-    // puertos
-    g.board.harbors.forEach((h) => {
-      const A = G.verts[h.a], B = G.verts[h.b];
-      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, len = Math.hypot(mx, my) || 1;
-      const px = (mx + (mx / len) * 0.95) * SZ, py = (my + (my / len) * 0.95) * SZ;
-      const ax = A.x * SZ, ay = A.y * SZ, bx = B.x * SZ, by = B.y * SZ;
-      s += `<g><line x1="${ax}" y1="${ay}" x2="${px}" y2="${py}" stroke="#2c1e12" stroke-width="7" stroke-linecap="round"/><line x1="${bx}" y1="${by}" x2="${px}" y2="${py}" stroke="#2c1e12" stroke-width="7" stroke-linecap="round"/>`;
-      s += `<line x1="${ax}" y1="${ay}" x2="${px}" y2="${py}" stroke="#b98a52" stroke-width="4" stroke-linecap="round"/><line x1="${bx}" y1="${by}" x2="${px}" y2="${py}" stroke="#b98a52" stroke-width="4" stroke-linecap="round"/>`;
-      const col = h.type === 'any' ? '#e9dcb8' : COL[h.type];
-      s += `<g transform="translate(${px.toFixed(1)},${py.toFixed(1)})" filter="url(#shd)"><circle r="19" fill="#2a1c10"/><circle r="16.5" fill="${col}" stroke="#f3e6c4" stroke-width="2"/>`;
-      if (h.type === 'any') s += `<text y="5" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="14" fill="#2b1d12">3:1</text>`;
-      else s += `<g transform="translate(-9,-14)">${ic(h.type, 18).replace('<svg', '<svg x="0" y="0"')}</g><text y="12" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="10" fill="#1d130a">2:1</text>`;
-      s += '</g></g>';
-    });
-    s += `<g id="b-pieces"></g><g id="b-spots"></g><g id="robber" class="robber"></g>`;
-    return s;
-  }
-
-  const shorten = (A, B, k) => { const dx = B.x - A.x, dy = B.y - A.y, l = Math.hypot(dx, dy) || 1; return [A.x + dx / l * k, A.y + dy / l * k, B.x - dx / l * k, B.y - dy / l * k]; };
-
-  function houseSVG(x, y, color, isNew) {
-    return `<g transform="translate(${x},${y})"><g class="${isNew ? 'pop' : ''}"><ellipse cy="9" rx="13" ry="4" fill="rgba(0,0,0,.4)"/><path d="M-10 8 V-3 L0 -12 L10 -3 V8 Z" fill="${color}" stroke="#1b1208" stroke-width="2" stroke-linejoin="round"/><path d="M-12 -2 L0 -14 L12 -2" fill="none" stroke="#1b1208" stroke-width="2.2" stroke-linejoin="round"/><rect x="-2.8" y="1" width="5.6" height="7" fill="rgba(0,0,0,.4)"/></g></g>`;
-  }
-  function citySVG(x, y, color, isNew) {
-    return `<g transform="translate(${x},${y})"><g class="${isNew ? 'pop' : ''}"><ellipse cy="10" rx="17" ry="4.5" fill="rgba(0,0,0,.4)"/><path d="M-15 9 V-4 H-4 V-13 L3 -20 L10 -13 V-2 H15 V9 Z" fill="${color}" stroke="#1b1208" stroke-width="2" stroke-linejoin="round"/><rect x="-2" y="-9" width="4" height="5" fill="rgba(0,0,0,.4)"/><rect x="5" y="1" width="4" height="8" fill="rgba(0,0,0,.4)"/><rect x="-11" y="1" width="4" height="5" fill="rgba(0,0,0,.4)"/></g></g>`;
-  }
-
-  // ---------- partes dinámicas del tablero ----------
+  // ---------- tablero 3D (lo dibuja catan-3d.js) ----------
   function renderBoard(g, room) {
-    const G = ui.G, color = (i) => room.players[i].color;
-    let p = '', sp = '';
-    Object.keys(g.roads).forEach((e) => {
-      const ed = G.edges[e], A = G.verts[ed.a], B = G.verts[ed.b], c = shorten({ x: A.x * SZ, y: A.y * SZ }, { x: B.x * SZ, y: B.y * SZ }, 6);
-      const key = 'r' + e, isNew = !ui.seen.has(key); ui.seen.add(key);
-      p += `<g><line x1="${c[0]}" y1="${c[1]}" x2="${c[2]}" y2="${c[3]}" stroke="#1b1208" stroke-width="13" stroke-linecap="round"/><line class="${isNew ? 'pop-l' : ''}" x1="${c[0]}" y1="${c[1]}" x2="${c[2]}" y2="${c[3]}" stroke="${color(g.roads[e])}" stroke-width="8" stroke-linecap="round"/></g>`;
-    });
-    Object.keys(g.buildings).forEach((v) => {
-      const b = g.buildings[v], V = G.verts[v], key = 'b' + v + b.t, isNew = !ui.seen.has(key); ui.seen.add(key);
-      p += (b.t === 'c' ? citySVG : houseSVG)((V.x * SZ).toFixed(1), (V.y * SZ).toFixed(1), color(b.o), isNew);
-    });
-    const L = g.legal || {};
-    let kind = null, ids = [];
-    if (g.phase === 'setup') { kind = g.setup.stage === 'settlement' ? 'settlement' : 'road'; ids = L[kind] || []; }
-    else if (g.phase === 'roadbuilding') { kind = 'road'; ids = L.road || []; }
-    else if (g.phase === 'main' && ui.mode) { kind = ui.mode; ids = L[ui.mode] || []; }
-    if (g.turn === g.me || ui.api.local) {
-      if (kind === 'road') ids.forEach((e) => { const ed = G.edges[e], A = G.verts[ed.a], B = G.verts[ed.b], c = shorten({ x: A.x * SZ, y: A.y * SZ }, { x: B.x * SZ, y: B.y * SZ }, 7); sp += `<line class="spot-e" data-a="spot-e" data-id="${e}" x1="${c[0]}" y1="${c[1]}" x2="${c[2]}" y2="${c[3]}"/>`; });
-      else if (kind) ids.forEach((v) => { const V = G.verts[v]; sp += `<circle class="spot-v" data-a="spot-v" data-id="${v}" cx="${(V.x * SZ).toFixed(1)}" cy="${(V.y * SZ).toFixed(1)}" r="${kind === 'city' ? 15 : 12}"/>`; });
+    const L = g.legal || {}, act = g.turn === g.me || ui.api.local;
+    let spots = null;
+    if (act) {
+      if (g.phase === 'setup') { const k = g.setup.stage === 'settlement' ? 'settlement' : 'road'; spots = { kind: k, ids: L[k] || [] }; }
+      else if (g.phase === 'roadbuilding') spots = { kind: 'road', ids: L.road || [] };
+      else if ((g.phase === 'main' || g.phase === 'special') && ui.mode) spots = { kind: ui.mode, ids: L[ui.mode] || [] };
+      else if (g.phase === 'robber') spots = { kind: 'robber', ids: L.robber || [] };
     }
-    if (g.phase === 'robber' && (g.turn === g.me || ui.api.local)) {
-      (L.robber || []).forEach((ti) => { const q = tilePos(g.board.tiles[ti]); sp += `<polygon class="spot-t" data-a="spot-t" data-id="${ti}" points="${hexPts(q.x, q.y, SZ - 3)}"/>`; });
-    }
-    $('#b-pieces').innerHTML = p;
-    $('#b-spots').innerHTML = sp;
-    const rb = $('#robber'), rp = tilePos(g.board.tiles[g.robber]);
-    if (!rb.firstChild) rb.innerHTML = `<ellipse cx="0" cy="15" rx="13" ry="4" fill="rgba(0,0,0,.45)"/><path d="M-10 15 Q-11 -4 0 -7 Q11 -4 10 15 Z" fill="#16110c" stroke="#000" stroke-width="1.5"/><circle cy="-13" r="7" fill="#16110c" stroke="#000" stroke-width="1.5"/><circle cx="-2.6" cy="-13" r="1.2" fill="#e8b04a"/><circle cx="2.6" cy="-13" r="1.2" fill="#e8b04a"/>`;
-    rb.style.transform = `translate(${(rp.x + 20).toFixed(1)}px,${(rp.y - 16).toFixed(1)}px)`;
-    rb.classList.toggle('awake', g.phase === 'robber');
+    const collect = ui.api.local || g.auto || g.phase === 'setup' ? [] : (g.pendTiles || []);
+    ui.b3.draw({ g, colors: room.players.map((p) => p.color), spots, collect });
   }
 
   // ---------- paneles ----------
@@ -223,11 +84,11 @@ ${[['wood', '#478a4f', '#245a2e'], ['brick', '#d4704a', '#a24a2c'], ['wool', '#a
 <div class="pinfo"><div class="pname">${esc(pl.name)}${you && !ui.api.local ? ` <em>(${T('you')})</em>` : ''}</div>
 <div class="pstats"><span title="${T('cards')}">${ic('card', 16)}${pp.res ? Object.values(pp.res).reduce((a, b) => a + b, 0) : pp.resN}</span><span title="${T('devc')}">${ic('dev', 16)}${pp.devN}</span><span title="${T('knights')}">${ic('knight', 16)}${pp.knights}</span><span title="${T('roadlen')}">${ic('road', 16)}${pp.len}</span></div>${bd ? `<div class="badges">${bd}</div>` : ''}</div>
 <div class="pvp"><b>${vp}</b><small>${T('vp')}</small></div></div>`;
-    }).join('');
+    }).join('') + `<div class="bankbox"><h4>${T('bank')}</h4><div class="bk">${RES.map((r) => `<span title="${T('res.' + r)}">${ic(r, 18)}<b>${g.bank[r]}</b></span>`).join('')}<span title="${T('deck')}">${ic('dev', 18)}<b>${g.deckN}</b></span></div>${g.ext ? `<p class="extnote">${T('ext.on')}</p>` : ''}</div>`;
   }
 
   function renderHand(g) {
-    const me = g.players[g.me], res = me.res || {}, my = myTurn(), main = my && g.phase === 'main';
+    const me = g.players[g.me], res = me.res || {}, my = myTurn(), main = my && g.phase === 'main', build = my && (g.phase === 'main' || g.phase === 'special');
     $('#cg-hand').innerHTML = RES.map((r) => `<div class="rcard ${res[r] ? '' : 'zero'}" style="--rc:${COL[r]}" title="${T('res.' + r)}">${ic(r, 34)}<span class="rname">${T('res.' + r)}</span><b class="rcount">${res[r] || 0}</b></div>`).join('');
     const cnt = {};
     (me.dev || []).forEach((c) => { (cnt[c] = cnt[c] || { n: 0, new: 0 }).n++; });
@@ -243,30 +104,62 @@ ${[['wood', '#478a4f', '#245a2e'], ['brick', '#d4704a', '#a24a2c'], ['wool', '#a
     const costHtml = (c) => Object.keys(c).map((k) => `<span>${c[k] > 1 ? c[k] : ''}${ic(k, 13)}</span>`).join('');
     const bt = (k, icon, ok, extra) => `<button class="bbtn ${ui.mode === k ? 'on' : ''}" data-a="${k === 'dev' ? 'buyDev' : 'mode'}" data-k="${k}" ${ok ? '' : 'disabled'}>${ic(icon, 28)}<span class="bn">${T('b.' + k)}</span><span class="cost">${costHtml(COST[k])}</span>${extra || ''}</button>`;
     $('#cg-build').innerHTML =
-      bt('road', 'road', main && aff(COST.road) && u.road < LIM.road && (L.road || []).length) +
-      bt('settlement', 'settle', main && aff(COST.settlement) && u.settlement < LIM.settlement && (L.settlement || []).length) +
-      bt('city', 'city', main && aff(COST.city) && u.city < LIM.city && (L.city || []).length) +
-      bt('dev', 'dev', main && aff(COST.dev) && g.deckN > 0, `<small class="deckn">${g.deckN}</small>`);
+      bt('road', 'road', build && aff(COST.road) && u.road < LIM.road && (L.road || []).length) +
+      bt('settlement', 'settle', build && aff(COST.settlement) && u.settlement < LIM.settlement && (L.settlement || []).length) +
+      bt('city', 'city', build && aff(COST.city) && u.city < LIM.city && (L.city || []).length) +
+      bt('dev', 'dev', build && aff(COST.dev) && g.deckN > 0, `<small class="deckn">${g.deckN}</small>`);
 
-    const roll = my && g.phase === 'roll', end = main;
+    const roll = my && g.phase === 'roll', end = build;
     $('#cg-actions').innerHTML =
       (roll ? `<button class="big primary" data-a="roll">${T('a.roll')}</button>` : '') +
       `<button class="big" data-a="trade" ${main ? '' : 'disabled'}>${T('a.trade')}</button>` +
-      `<button class="big ${end ? 'primary' : ''}" data-a="end" ${end ? '' : 'disabled'}>${T('a.end')}</button>`;
+      `<button class="big ${end ? 'primary' : ''}" data-a="end" ${end ? '' : 'disabled'}>${g.phase === 'special' ? T('a.endSp') : T('a.end')}</button>`;
   }
 
+  // Pistas sutiles según el momento de la partida. No se menciona nunca recoger recursos: eso lo debe notar el jugador.
   function guideInfo(g) {
-    const my = myTurn(), cur = nameOf(g.turn), wait = (k) => ({ kick: cur, title: T(k, { name: cur }), text: '' });
+    const my = myTurn(), cur = nameOf(g.turn), me = g.players[g.me], have = me.res || {};
+    const COST = root.CatanEngine.COST, LIM = root.CatanEngine.LIMIT, u = me.used;
+    const aff = (c) => Object.keys(c).every((k) => (have[k] || 0) >= c[k]);
+    const wait = (extra) => ({ kick: cur, title: T('g.wait', { name: cur }), text: extra || T('g.wait.d') });
+    const L = g.legal || {};
     switch (g.phase) {
-      case 'setup':
-        if (my) return g.setup.stage === 'settlement' ? { kick: T('ev.setup'), title: T('g.setupSettle'), text: T('g.setupSettle.d') } : { kick: T('ev.setup'), title: T('g.setupRoad'), text: T('g.setupRoad.d') };
-        return { kick: T('ev.setup'), title: T('g.wait', { name: cur }), text: T('g.wait.d') };
-      case 'roll': return my ? { kick: cur, title: T('g.roll'), text: T('g.roll.d') } : { kick: cur, title: T('g.wait', { name: cur }), text: T('g.wait.d') };
-      case 'main': return my ? { kick: cur, title: T('g.main'), text: T('g.main.d') } : { kick: cur, title: T('g.wait', { name: cur }), text: T('g.wait.d') };
-      case 'discard': return { kick: T('g.discard'), title: T('g.discard'), text: T('g.discard.d') };
+      case 'setup': {
+        const round = g.setup.step < g.players.length ? 1 : 2, n = g.players.length;
+        const steps = { items: [T('st.settle'), T('st.road')], on: g.setup.stage === 'settlement' ? 0 : 1 };
+        if (!my) return { kick: T('ev.setup', { r: round }), title: T('g.wait', { name: cur }), text: T('g.setupW'), steps };
+        return g.setup.stage === 'settlement'
+          ? { kick: T('ev.setup', { r: round }), title: T('g.setupSettle'), text: T('g.setupSettle.d'), steps }
+          : { kick: T('ev.setup', { r: round }), title: T('g.setupRoad'), text: T('g.setupRoad.d'), steps };
+      }
+      case 'roll': {
+        const steps = { items: [T('st.roll'), T('st.build'), T('st.end')], on: 0 };
+        if (!my) return Object.assign(wait(), { steps });
+        const kn = (me.dev || []).indexOf('knight') >= 0 && !g.devPlayed;
+        return { kick: cur, title: T('g.roll'), text: kn ? T('g.roll.kn') : T('g.roll.d'), steps };
+      }
+      case 'main': {
+        const steps = { items: [T('st.roll'), T('st.build'), T('st.end')], on: 1 };
+        if (!my) return Object.assign(wait(T('g.wait.main')), { steps });
+        if (ui.mode === 'road') return { kick: cur, title: T('g.mode.road'), text: T('g.mode.road.d'), steps };
+        if (ui.mode === 'settlement') return { kick: cur, title: T('g.mode.settlement'), text: T('g.mode.settlement.d'), steps };
+        if (ui.mode === 'city') return { kick: cur, title: T('g.mode.city'), text: T('g.mode.city.d'), steps };
+        const can = [];
+        if (aff(COST.road) && u.road < LIM.road && (L.road || []).length) can.push(T('w.road'));
+        if (aff(COST.settlement) && u.settlement < LIM.settlement && (L.settlement || []).length) can.push(T('w.settlement'));
+        if (aff(COST.city) && u.city < LIM.city && (L.city || []).length) can.push(T('w.city'));
+        if (aff(COST.dev) && g.deckN > 0) can.push(T('w.dev'));
+        return { kick: cur, title: T('g.main'), text: can.length ? T('g.main.can', { list: can.join(', ') }) : T('g.main.none'), steps };
+      }
+      case 'special': {
+        const steps = null;
+        if (!my) return { kick: T('g.special.k'), title: T('g.wait', { name: cur }), text: T('g.special.w') };
+        return { kick: T('g.special.k'), title: T('g.special'), text: T('g.special.d'), steps };
+      }
+      case 'discard': return { kick: T('g.discard'), title: g.discard[g.me] ? T('g.discard.me', { n: g.discard[g.me] }) : T('g.discard'), text: g.discard[g.me] ? T('g.discard.d') : T('g.discard.w') };
       case 'robber': return my ? { kick: cur, title: T('g.robber'), text: T('g.robber.d') } : { kick: cur, title: T('g.robberW', { name: cur }), text: '' };
       case 'steal': return my ? { kick: cur, title: T('g.steal'), text: '', steal: true } : { kick: cur, title: T('g.stealW', { name: cur }), text: '' };
-      case 'roadbuilding': return my ? { kick: cur, title: T('g.roads'), text: T('g.roads.d', { n: g.freeRoads }) } : { kick: cur, title: T('g.wait', { name: cur }), text: '' };
+      case 'roadbuilding': return my ? { kick: cur, title: T('g.roads'), text: T('g.roads.d', { n: g.freeRoads }) } : wait('');
       default: return { kick: '', title: T('g.over'), text: '' };
     }
   }
@@ -279,7 +172,8 @@ ${[['wood', '#478a4f', '#245a2e'], ['brick', '#d4704a', '#a24a2c'], ['wool', '#a
       const pend = Object.keys(g.discard).map((k) => `${esc(nameOf(+k))} (${g.discard[k]})`).join(', ');
       extra = `<p class="pend">${pend}</p>`;
     }
-    $('#cg-guide').innerHTML = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${extra}`;
+    const steps = i.steps ? `<div class="steps">${i.steps.items.map((t, k) => `<span class="${k === i.steps.on ? 'on' : k < i.steps.on ? 'done' : ''}"><i>${k + 1}</i>${esc(t)}</span>`).join('')}</div>` : '';
+    $('#cg-guide').innerHTML = `<div class="gk">${esc(i.kick)}</div><h3>${esc(i.title)}</h3>${i.text ? `<p>${esc(i.text)}</p>` : ''}${steps}${extra}`;
   }
 
   function offerRow(o) {
@@ -329,7 +223,7 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
   }
 
   // ---------- avisos ----------
-  const TOAST = { roll: 1, robber: 1, steal: 1, knight: 1, longest: 1, army: 1, trade: 1, offer: 1, win: 1, produce: 1, playMonopoly: 1, playPlenty: 1, discard: 1 };
+  const TOAST = { special: 1, short: 1, roll: 1, robber: 1, steal: 1, knight: 1, longest: 1, army: 1, trade: 1, offer: 1, win: 1, produce: 1, playMonopoly: 1, playPlenty: 1, discard: 1 };
   function pushToast(txt, cls) {
     const box = $('#cg-toasts'), d = document.createElement('div');
     d.className = 'ev ' + (cls || '');
@@ -381,12 +275,16 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
     return modal(`<h2>${T('tr.title')}</h2><div class="tabs"><button class="${ui.tab === 'bank' ? 'on' : ''}" data-a="tab" data-k="bank">${T('tr.bank')}</button><button class="${ui.tab === 'players' ? 'on' : ''}" data-a="tab" data-k="players">${T('tr.players')}</button></div>${body}`, { cls: 'trade' });
   }
   function rulesModal() {
-    const sec = (a) => `<h4>${T('rules.' + a)}</h4><p>${T('rules.' + a + '.t')}</p>`;
-    return modal(`<h2>${T('rules.title')}</h2>${sec('goal')}${['s1', 's2', 's3', 's4', 's5'].map(sec).join('')}`, { cls: 'rules' });
+    const R = root.I18N.rules(), i = Math.min(ui.rule, R.length - 1);
+    const html = R[i].html.replace(/\{ic:(\w+)\}/g, (m, n) => ic(n, 18));
+    return modal(`<h2>${T('rules.title')}</h2><div class="rbook"><nav>${R.map((x, k) => `<button class="${k === i ? 'on' : ''}" data-a="rule" data-k="${k}"><span>${k + 1}</span>${esc(x.t)}</button>`).join('')}</nav><article><h3>${esc(R[i].t)}</h3>${html}<div class="rnav">${i > 0 ? `<button class="mini" data-a="rule" data-k="${i - 1}">← ${esc(R[i - 1].t)}</button>` : '<span></span>'}${i < R.length - 1 ? `<button class="mini go" data-a="rule" data-k="${i + 1}">${esc(R[i + 1].t)} →</button>` : ''}</div></article></div>`, { cls: 'rules' });
   }
   function settingsModal() {
+    const g = ui.g, can = ui.api.isHost && !ui.api.local;
     return modal(`<h2>${T('set.title')}</h2><div class="setrow"><span>${T('set.lang')}</span><div class="seg"><button class="${root.I18N.lang === 'es' ? 'on' : ''}" data-a="lang" data-k="es">Español</button><button class="${root.I18N.lang === 'en' ? 'on' : ''}" data-a="lang" data-k="en">English</button></div></div>
 <div class="setrow"><span>${T('set.sound')}</span><div class="seg"><button class="${ui.sound ? 'on' : ''}" data-a="sound" data-k="1">${T('set.on')}</button><button class="${ui.sound ? '' : 'on'}" data-a="sound" data-k="0">${T('set.off')}</button></div></div>
+${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can ? 'set.auto.d' : 'set.auto.h')}</small></span><div class="seg"><button class="${g.auto ? 'on' : ''}" data-a="auto" data-k="1" ${can ? '' : 'disabled'}>${T('set.on')}</button><button class="${g.auto ? '' : 'on'}" data-a="auto" data-k="0" ${can ? '' : 'disabled'}>${T('set.off')}</button></div></div>`}
+<div class="setrow"><span>${T('set.cam')}<small>${T('set.cam.d')}</small></span><div class="seg"><button data-a="camreset">${T('cam.reset')}</button><button data-a="camflat">${T('cam.flat')}</button></div></div>
 <div class="setrow"><span></span><button class="big" data-a="leave">${T('a.leave')}</button></div>`, { cls: 'settings' });
   }
   function discardModal(g) {
@@ -416,6 +314,9 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
       else if (ui.modal === 'settings') h = settingsModal();
       else if (ui.modal === 'plenty' || ui.modal === 'monopoly') h = pickModal(ui.modal);
     }
+    const key = ui.modal === 'rules' && h ? 'rules:' + ui.rule + ':' + root.I18N.lang : '';
+    if (key && key === ui.modalKey && el.firstChild) return;
+    ui.modalKey = key;
     el.innerHTML = h;
   }
 
@@ -429,11 +330,18 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
     switch (a) {
       case 'mclose-bg': if (e.target === el) { ui.modal = null; rerender(); } return;
       case 'mclose': ui.modal = null; ui.plenty = []; rerender(); return;
-      case 'rules': ui.modal = 'rules'; rerender(); return;
+      case 'rules': ui.modal = 'rules'; ui.modalKey = ''; rerender(); return;
+      case 'rule': ui.rule = +k; ui.modalKey = ''; rerender(); { const art = $('#cg-modal .rbook article'); if (art) art.scrollTop = 0; } return;
       case 'settings': ui.modal = 'settings'; rerender(); return;
       case 'lang': root.I18N.set(k); return;
       case 'sound': ui.sound = k === '1'; try { localStorage.setItem('mesa-sound', k); } catch (x) {} if (ui.sound) sfx.ping(); rerender(); return;
       case 'leave': ui.api.leave(); return;
+      case 'auto': act({ t: 'auto', v: k === '1' }); return;
+      case 'camreset': if (ui.b3) { ui.b3.cam.yaw = 28; ui.b3.cam.pitch = 52; ui.b3.cam.zoom = 1; ui.b3.redraw(); } return;
+      case 'camflat': if (ui.b3) { ui.b3.cam.yaw = 0; ui.b3.cam.pitch = 0; ui.b3.cam.zoom = 1; ui.b3.redraw(); } return;
+      case 'collect':
+        if (!(g.myPend && g.myPend[id])) { pushToast('<span>' + esc(T('collect.none')) + '</span>'); return; }
+        act({ t: 'collect', tile: id }); return;
       case 'roll': if (myTurn() && g.phase === 'roll') act({ t: 'roll' }); return;
       case 'end': ui.mode = null; act({ t: 'end' }); return;
       case 'mode': ui.mode = ui.mode === k ? null : k; rerender(); return;
@@ -443,7 +351,7 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
         else if (el.classList.contains('playable')) act({ t: 'playDev', card: k });
         return;
       case 'spot-v': act({ t: 'build', kind: g.phase === 'setup' ? 'settlement' : ui.mode, id }); if (g.phase !== 'setup') ui.mode = null; return;
-      case 'spot-e': act({ t: 'build', kind: 'road', id }); if (g.phase === 'main') ui.mode = null; return;
+      case 'spot-e': act({ t: 'build', kind: 'road', id }); if (g.phase === 'main' || g.phase === 'special') ui.mode = null; return;
       case 'spot-t': act({ t: 'moveRobber', tile: id }); return;
       case 'steal': act({ t: 'steal', from: id }); return;
       case 'trade': ui.modal = 'trade'; ui.tab = 'bank'; rerender(); return;
@@ -470,16 +378,17 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
     if (!document.getElementById('cg-symbols')) {
       const d = document.createElement('div'); d.id = 'cg-symbols'; d.innerHTML = SYMBOLS; document.body.appendChild(d);
     }
-    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, seen: new Set(), started: false });
-    ui.G = Board.buildGraph(room.g.board.tiles);
+    if (ui.b3) { try { ui.b3.destroy(); } catch (e) {} ui.b3 = null; }
+    Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '' });
     main.innerHTML = `<div id="cg">
 <div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
-<section id="cg-center"><div id="cg-boardwrap"><svg id="cg-board" viewBox="-400 -370 800 740" preserveAspectRatio="xMidYMid meet">${boardStatic(room.g)}</svg><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
+<section id="cg-center"><div id="cg-boardwrap"><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
 <div id="cg-bottom"><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
 <aside id="cg-side"><div id="cg-guide" class="parch"></div><div id="cg-actions"></div><div id="cg-offer" class="parch"></div><div id="cg-log"></div></aside></div>
 <div id="cg-modal"></div></div>`;
     $('#cg').addEventListener('click', onClick);
+    ui.b3 = root.Catan3D.create($('#cg-boardwrap'), room.g.board, { labels: { left: T('cam.left'), right: T('cam.right'), up: T('cam.up'), down: T('cam.down'), in: T('cam.in'), out: T('cam.out'), flat: T('cam.flat'), reset: T('cam.reset'), hint: T('cam.hint') } });
   }
 
   function update(main, room, api) {
@@ -489,7 +398,8 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
     const ttl = $('#cg-top .ttl');
     ttl.innerHTML = `<span class="logo">${ic('settle', 26)}</span><b>${esc(root.GAMES.find((x) => x.id === room.game).name[root.I18N.lang])}</b><span class="rm">${T('room')} ${esc(room.code)}</span>`;
     $('#cg-top .topbtns').innerHTML = `<button data-a="rules">📖 ${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button>`;
-    if (g.phase !== 'main') ui.mode = null;
+    if (g.phase !== 'main' && g.phase !== 'special') ui.mode = null;
+    document.querySelectorAll('#cg-boardwrap .cam [data-cam]').forEach((b) => { b.title = T('cam.' + b.dataset.cam); });
     processEvents(g);
     renderBoard(g, room);
     renderPlayers(g, room);

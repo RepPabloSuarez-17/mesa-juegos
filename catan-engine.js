@@ -1,4 +1,5 @@
-// Motor de reglas de Catán (juego base). Lo ejecuta SOLO el anfitrión; los demás reciben vistas filtradas.
+// Motor de reglas de Catán (juego base + extensión 5-6 jugadores). Lo ejecuta SOLO el anfitrión;
+// los demás reciben vistas filtradas (cada uno ve solo su mano).
 (function (root) {
   const Board = typeof module !== 'undefined' && module.exports ? require('./catan-board.js') : root.CatanBoard;
   const RES = Board.RES;
@@ -9,7 +10,9 @@
     dev: { wool: 1, grain: 1, ore: 1 },
   };
   const LIMIT = { road: 15, settlement: 5, city: 4 };
-  const DEV_DECK = { knight: 14, vp: 5, roads: 2, plenty: 2, monopoly: 2 };
+  const DEV_BASE = { knight: 14, vp: 5, roads: 2, plenty: 2, monopoly: 2 }; // 25 cartas
+  const DEV_EXT = { knight: 20, vp: 5, roads: 3, plenty: 3, monopoly: 3 }; // 34 cartas
+  const BANK_BASE = 19, BANK_EXT = 24;
   const WIN_VP = 10;
 
   const emptyRes = () => ({ wood: 0, brick: 0, wool: 0, grain: 0, ore: 0 });
@@ -17,16 +20,20 @@
   const isRes = (r) => RES.indexOf(r) >= 0;
   const rnd = (n) => Math.floor(Math.random() * n);
 
-  function CatanGame(ids, board) {
+  function CatanGame(ids, board, opts) {
+    opts = opts || {};
     this.ids = ids;
     this.n = ids.length;
     this.board = board;
+    this.ext = !!board.ext;
     this.G = Board.buildGraph(board.tiles);
-    const deck = [];
-    Object.keys(DEV_DECK).forEach((k) => { for (let i = 0; i < DEV_DECK[k]; i++) deck.push(k); });
+    const DEV = this.ext ? DEV_EXT : DEV_BASE, deck = [];
+    Object.keys(DEV).forEach((k) => { for (let i = 0; i < DEV[k]; i++) deck.push(k); });
     const order = [];
     for (let i = 0; i < this.n; i++) order.push(i);
     for (let i = this.n - 1; i >= 0; i--) order.push(i);
+    const bank = {};
+    RES.forEach((r) => { bank[r] = this.ext ? BANK_EXT : BANK_BASE; });
     this.s = {
       phase: 'setup', turn: 0, setup: { order, step: 0, stage: 'settlement', last: null },
       dice: null, rollId: 0, buildings: {}, roads: {}, robber: board.robber,
@@ -34,6 +41,7 @@
       deck: Board.shuffle(deck), devPlayed: false, freeRoads: 0, returnPhase: null,
       discard: {}, offer: null, longest: { o: null, len: 0 }, army: { o: null, n: 0 },
       lens: ids.map(() => 0), victims: [], winner: null, log: [], seq: 0,
+      bank, pend: ids.map(() => ({})), auto: !!opts.auto, base: 0, sp: null,
     };
   }
 
@@ -58,7 +66,11 @@
   };
   P.totalVP = function (pi) { return this.publicVP(pi) + this.s.pl[pi].vp; };
   P.afford = function (pi, cost) { const r = this.s.pl[pi].res; return Object.keys(cost).every((k) => r[k] >= cost[k]); };
-  P.pay = function (pi, cost) { const r = this.s.pl[pi].res; Object.keys(cost).forEach((k) => { r[k] -= cost[k]; }); };
+  // Pagar devuelve las cartas al banco
+  P.pay = function (pi, cost) {
+    const r = this.s.pl[pi].res, b = this.s.bank;
+    Object.keys(cost).forEach((k) => { r[k] -= cost[k]; b[k] += cost[k]; });
+  };
   P.ratio = function (pi, res) {
     const s = this.s;
     let r = 4;
@@ -165,21 +177,71 @@
     s.returnPhase = 'main';
   };
 
+  // ---------- producción y recogida ----------
+  // Al tirar los dados se calcula lo que le toca a cada jugador en cada hexágono y se reserva en el banco.
+  // Cada jugador debe RECOGER sus cartas tocando el hexágono (o se le entregan al siguiente lanzamiento).
+  // Banco limitado: si no alcanza y solo un jugador tiene derecho, recibe lo que quede; si varios, nadie.
   P.produce = function (n) {
-    const s = this.s, G = this.G;
-    const gains = this.ids.map(emptyRes);
-    this.board.tiles.forEach((t, ti) => {
+    const s = this.s, G = this.G, T = this.board.tiles;
+    const want = this.ids.map(() => ({}));
+    const tot = {}, who = {};
+    RES.forEach((r) => { tot[r] = 0; who[r] = new Set(); });
+    T.forEach((t, ti) => {
       if (t.num !== n || ti === s.robber) return;
-      G.tileVerts[ti].forEach((v) => { const b = s.buildings[v]; if (b) gains[b.o][t.res] += b.t === 'c' ? 2 : 1; });
+      G.tileVerts[ti].forEach((v) => {
+        const b = s.buildings[v];
+        if (!b) return;
+        const c = b.t === 'c' ? 2 : 1;
+        want[b.o][ti] = (want[b.o][ti] || 0) + c;
+        tot[t.res] += c; who[t.res].add(b.o);
+      });
+    });
+    RES.forEach((r) => {
+      if (tot[r] <= s.bank[r]) return;
+      if (who[r].size === 1) {
+        let left = s.bank[r];
+        const p = Array.from(who[r])[0];
+        Object.keys(want[p]).forEach((ti) => {
+          if (T[+ti].res !== r) return;
+          const k = Math.min(want[p][ti], left);
+          want[p][ti] = k; left -= k;
+        });
+      } else {
+        want.forEach((w) => Object.keys(w).forEach((ti) => { if (T[+ti].res === r) delete w[ti]; }));
+      }
+      this.log('short', { res: r });
     });
     let any = false;
-    gains.forEach((g, i) => {
-      if (!sum(g)) return;
+    want.forEach((w, pi) => Object.keys(w).forEach((ti) => {
+      if (!w[ti]) return;
+      s.bank[T[+ti].res] -= w[ti];
+      s.pend[pi][ti] = (s.pend[pi][ti] || 0) + w[ti];
       any = true;
-      RES.forEach((r) => { s.pl[i].res[r] += g[r]; });
-      this.log('produce', { p: i, res: g });
-    });
+    }));
     if (!any) this.log('nothing');
+    if (s.auto) this.claimAll();
+  };
+
+  // Entrega al jugador lo pendiente de un hexágono (ti) o de todos (ti === undefined)
+  P.claim = function (pi, ti) {
+    const s = this.s, T = this.board.tiles, got = emptyRes();
+    const keys = ti === undefined ? Object.keys(s.pend[pi]) : [String(ti)];
+    keys.forEach((k) => {
+      const n = s.pend[pi][k];
+      if (!n) return;
+      got[T[+k].res] += n;
+      s.pl[pi].res[T[+k].res] += n;
+      delete s.pend[pi][k];
+    });
+    if (sum(got)) this.log('produce', { p: pi, res: got });
+    return sum(got);
+  };
+  P.claimAll = function () { this.ids.forEach((_, pi) => this.claim(pi)); };
+  P.setAuto = function (v) { this.s.auto = !!v; if (v) this.claimAll(); };
+  P.pendTiles = function () {
+    const s = this.s, set = {};
+    s.pend.forEach((o) => Object.keys(o).forEach((k) => { if (o[k] > 0) set[k] = 1; }));
+    return Object.keys(set).map(Number);
   };
 
   // ---------- vista para un jugador (oculta la información privada) ----------
@@ -190,7 +252,7 @@
     if (s.phase === 'setup') {
       if (s.setup.stage === 'settlement') L.settlement = list(G.verts.length, (v) => this.canSettle(v, me, true));
       else L.road = list(G.edges.length, (e) => this.canRoad(e, me));
-    } else if (s.phase === 'main') {
+    } else if (s.phase === 'main' || s.phase === 'special') {
       L.road = list(G.edges.length, (e) => this.canRoad(e, me));
       L.settlement = list(G.verts.length, (v) => this.canSettle(v, me, false));
       L.city = list(G.verts.length, (v) => s.buildings[v] && s.buildings[v].o === me && s.buildings[v].t === 's');
@@ -209,10 +271,12 @@
     const ratios = {};
     if (me >= 0) RES.forEach((r) => { ratios[r] = this.ratio(me, r); });
     return JSON.parse(JSON.stringify({
-      me, board: this.board, phase: s.phase, turn: s.turn, setup: { stage: s.setup.stage, step: s.setup.step, total: s.setup.order.length },
+      me, ext: this.ext, board: this.board, phase: s.phase, turn: s.turn, setup: { stage: s.setup.stage, step: s.setup.step, total: s.setup.order.length },
       dice: s.dice, rollId: s.rollId, buildings: s.buildings, roads: s.roads, robber: s.robber,
       devPlayed: s.devPlayed, freeRoads: s.freeRoads, discard: s.discard, offer: s.offer, deckN: s.deck.length,
       longest: s.longest, army: s.army, winner: s.winner, log: s.log.slice(-40), seq: s.seq, victims: s.victims,
+      bank: s.bank, auto: s.auto, sp: s.sp ? { base: s.base, left: s.sp.list.length - s.sp.i - 1 } : null,
+      myPend: me >= 0 ? s.pend[me] : {}, pendTiles: this.pendTiles(),
       ratios, legal: me >= 0 ? this.legalFor(me) : {},
       players: s.pl.map((p, i) => {
         const showHidden = i === me || over;
@@ -236,6 +300,13 @@
     const my = s.turn === pi, p = s.pl[pi], G = this.G;
     const err = (() => {
       switch (m.t) {
+        case 'collect': {
+          if (s.phase === 'setup') return 'e.phase';
+          const ti = m.tile;
+          if (!Number.isInteger(ti) || !s.pend[pi][ti]) return 'e.nothing';
+          this.claim(pi, ti);
+          return null;
+        }
         case 'discard': {
           const need = s.discard[pi];
           if (s.phase !== 'discard' || !need) return 'e.phase';
@@ -247,7 +318,7 @@
             tot += n;
           }
           if (tot !== need) return 'e.discardCount';
-          RES.forEach((r) => { p.res[r] -= Math.floor(+c[r] || 0); });
+          RES.forEach((r) => { const k = Math.floor(+c[r] || 0); p.res[r] -= k; s.bank[r] += k; });
           delete s.discard[pi];
           this.log('discard', { p: pi, n: need });
           if (!Object.keys(s.discard).length) s.phase = 'robber';
@@ -260,6 +331,7 @@
         }
         case 'roll': {
           if (!my || s.phase !== 'roll') return 'e.phase';
+          this.claimAll(); // lo que alguien no recogió del lanzamiento anterior se le entrega ahora
           const d = [1 + rnd(6), 1 + rnd(6)], tot = d[0] + d[1];
           s.dice = d; s.rollId++;
           this.log('roll', { p: pi, d1: d[0], d2: d[1] });
@@ -269,7 +341,7 @@
         }
         case 'build': return this.doBuild(pi, m);
         case 'buyDev': {
-          if (!my || s.phase !== 'main') return 'e.phase';
+          if (!my || (s.phase !== 'main' && s.phase !== 'special')) return 'e.phase';
           if (!s.deck.length) return 'e.deckEmpty';
           if (!this.afford(pi, COST.dev)) return 'e.afford';
           this.pay(pi, COST.dev);
@@ -306,7 +378,9 @@
           if (!isRes(m.give) || !isRes(m.get) || m.give === m.get) return 'e.invalid';
           const r = this.ratio(pi, m.give);
           if (p.res[m.give] < r) return 'e.afford';
-          p.res[m.give] -= r; p.res[m.get]++;
+          if (s.bank[m.get] < 1) return 'e.bankEmpty';
+          p.res[m.give] -= r; s.bank[m.give] += r;
+          p.res[m.get]++; s.bank[m.get]--;
           this.log('bank', { p: pi, give: m.give, get: m.get, n: r });
           return null;
         }
@@ -343,11 +417,26 @@
           return null;
         }
         case 'end': {
-          if (!my || s.phase !== 'main') return 'e.phase';
+          if (!my || (s.phase !== 'main' && s.phase !== 'special')) return 'e.phase';
           p.dev = p.dev.concat(p.newDev); p.newDev = [];
+          if (s.phase === 'special') {
+            const sp = s.sp;
+            sp.i++;
+            if (sp.i < sp.list.length) { s.turn = sp.list[sp.i]; this.log('special', { p: s.turn }); }
+            else { s.sp = null; s.turn = (s.base + 1) % this.n; s.phase = 'roll'; }
+            return null;
+          }
           s.devPlayed = false; s.offer = null; s.dice = null;
-          s.turn = (s.turn + 1) % this.n;
-          s.phase = 'roll';
+          if (this.ext) {
+            // Extensión 5-6: fase de construcción especial para todos los demás, empezando por el siguiente
+            const list = [];
+            for (let k = 1; k < this.n; k++) list.push((pi + k) % this.n);
+            s.base = pi; s.sp = { list, i: 0 }; s.turn = list[0]; s.phase = 'special';
+            this.log('special', { p: s.turn });
+          } else {
+            s.turn = (s.turn + 1) % this.n;
+            s.phase = 'roll';
+          }
           return null;
         }
         default: return 'e.invalid';
@@ -367,7 +456,10 @@
         if (id < 0 || id >= G.verts.length || !this.canSettle(id, pi, true)) return 'e.spot';
         s.buildings[id] = { o: pi, t: 's' };
         if (st.step >= this.n) {
-          G.verts[id].tiles.forEach((ti) => { const t = this.board.tiles[ti]; if (t.res !== 'desert') p.res[t.res]++; });
+          G.verts[id].tiles.forEach((ti) => {
+            const t = this.board.tiles[ti];
+            if (t.res !== 'desert' && s.bank[t.res] > 0) { p.res[t.res]++; s.bank[t.res]--; }
+          });
         }
         st.stage = 'road'; st.last = id;
         this.log('setupSettle', { p: pi });
@@ -395,7 +487,7 @@
       this.endRoadBuilding(pi);
       return null;
     }
-    if (s.phase !== 'main') return 'e.phase';
+    if (s.phase !== 'main' && s.phase !== 'special') return 'e.phase';
     if (m.kind === 'road') {
       if (u.road >= LIMIT.road) return 'e.limit';
       if (!this.afford(pi, COST.road)) return 'e.afford';
@@ -430,7 +522,10 @@
     if (s.devPlayed) return 'e.devOnce';
     const i = p.dev.indexOf(m.card);
     if (i < 0 || m.card === 'vp') return 'e.dev';
-    if (m.card === 'plenty' && !(isRes(m.a) && isRes(m.b))) return 'e.invalid';
+    if (m.card === 'plenty') {
+      if (!(isRes(m.a) && isRes(m.b))) return 'e.invalid';
+      if (s.bank[m.a] + s.bank[m.b] === 0) return 'e.bankEmpty';
+    }
     if (m.card === 'monopoly' && !isRes(m.res)) return 'e.invalid';
     p.dev.splice(i, 1);
     s.devPlayed = true;
@@ -448,7 +543,7 @@
       s.returnPhase = s.phase; s.phase = 'roadbuilding';
       this.endRoadBuilding(pi);
     } else if (m.card === 'plenty') {
-      p.res[m.a]++; p.res[m.b]++;
+      [m.a, m.b].forEach((r) => { if (s.bank[r] > 0) { s.bank[r]--; p.res[r]++; } });
       this.log('playPlenty', { p: pi, a: m.a, b: m.b });
     } else if (m.card === 'monopoly') {
       let tot = 0;

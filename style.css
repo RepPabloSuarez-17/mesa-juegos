@@ -231,3 +231,64 @@ button.mini:disabled { opacity: .4; cursor: default; }
 .shex { stroke: #3d2615; stroke-width: 3; transition: filter .15s; }
 .shex:hover { filter: brightness(1.12); }
 @media (max-width: 800px) { #sgame { flex-direction: column; } #spanel { width: auto; margin: 0 12px 12px; } }
+
+/* ---------- tablero 3D ---------- */
+#cg-boardwrap { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#cg-boardwrap.dragging { cursor: grabbing; }
+#cg-board [data-a] { cursor: pointer; }
+.spot-v { vector-effect: non-scaling-stroke; }
+.hl { fill: #ffd86a2e; stroke: #ffe9a6; stroke-width: 3; vector-effect: non-scaling-stroke; cursor: pointer; animation: pulse 1.3s ease-in-out infinite; }
+.hl:hover { fill: #ffd86a66; }
+.cam { position: absolute; left: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; max-width: 280px; padding: 6px; background: rgba(32, 22, 12, .82); border: 1px solid #d9a44155; border-radius: 12px; backdrop-filter: blur(3px); z-index: 3; }
+.cam button { width: 32px; height: 30px; border-radius: 8px; border: 1px solid #d9a44166; background: linear-gradient(180deg, #5a3d22, #3a2814); color: var(--parch); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
+.cam button:hover { filter: brightness(1.3); border-color: var(--gold2); }
+.camhint { flex-basis: 100%; font-size: 11px; color: #d8c9a6; opacity: .75; padding: 0 3px; }
+
+/* ---------- guía por pasos ---------- */
+.steps { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.steps span { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 3px 9px 3px 4px; border-radius: 12px; background: #00000012; color: #6b5a3c; font-weight: 600; }
+.steps span i { font-style: normal; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: #b89c6266; font-size: 10.5px; }
+.steps span.on { background: var(--gold); color: var(--ink); }
+.steps span.on i { background: var(--ink); color: var(--gold2); }
+.steps span.done { opacity: .55; }
+
+/* ---------- banco ---------- */
+.bankbox { margin-top: 12px; padding: 10px; border-radius: 10px; background: #00000030; border: 1px solid #ffffff12; }
+.bankbox h4 { margin: 0 0 8px !important; }
+.bk { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.bk span { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; }
+.bk b { font-family: var(--serif); color: var(--gold2); }
+.extnote { margin: 8px 0 0; font-size: 11.5px; opacity: .7; line-height: 1.35; }
+.badge.sp { background: #b3402a; color: #fff; }
+
+/* ---------- libro de reglas ---------- */
+.modal.rules { width: min(860px, 100%); }
+.rbook { display: grid; grid-template-columns: 210px 1fr; gap: 18px; min-height: 380px; }
+.rbook nav { display: flex; flex-direction: column; gap: 3px; max-height: 62vh; overflow: auto; padding-right: 4px; }
+.rbook nav button { display: flex; align-items: center; gap: 8px; text-align: left; background: #fffaf0; border: 1px solid #c9b48b; border-radius: 8px; padding: 6px 9px; cursor: pointer; font-size: 13px; color: var(--ink); }
+.rbook nav button span { flex: none; width: 20px; height: 20px; border-radius: 50%; background: #d9c699; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.rbook nav button.on { background: var(--gold); border-color: #7a5a18; font-weight: 700; }
+.rbook article { max-height: 62vh; overflow: auto; padding-right: 6px; }
+.rbook article h3 { margin: 0 0 8px; font-family: var(--serif); font-size: 22px; }
+.rbook article p, .rbook article li { font-size: 14.5px; line-height: 1.55; }
+.rbook article ul, .rbook article ol { margin: 8px 0; padding-left: 20px; }
+.rbook article li { margin: 4px 0; }
+.rt { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.rt td { padding: 7px 10px; border-bottom: 1px solid #b89c6255; font-size: 14px; vertical-align: middle; }
+.rt td:first-child { white-space: nowrap; }
+.rt .ic { margin: 0 1px; }
+.rnav { display: flex; justify-content: space-between; margin-top: 16px; gap: 8px; }
+.setrow small { display: block; font-weight: 400; font-size: 11.5px; opacity: .65; margin-top: 2px; }
+.seg button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 700px) {
+  .rbook { grid-template-columns: 1fr; }
+  .rbook nav { flex-direction: row; flex-wrap: wrap; max-height: none; }
+  .rbook nav button { font-size: 11.5px; padding: 4px 7px; }
+  .rbook nav button span { display: none; }
+  .rbook article { max-height: 48vh; }
+  .cam { max-width: 200px; left: 6px; bottom: 6px; }
+  .camhint { display: none; }
+  #cg-players { align-items: flex-start; }
+  .bankbox { margin-top: 0; min-width: 230px; flex: none; }
+  .extnote { display: none; }
+}
