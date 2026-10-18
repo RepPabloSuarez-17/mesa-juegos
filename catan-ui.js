@@ -494,7 +494,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     return ts.map((ti) => (EMO[T0[ti].res] || '') + (T0[ti].num || '')).join(' ');
   };
 
-  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: false, cands: null, after: null, stealName: null, lastKind: null, lang: 'es', live: '' };
+  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: false, cands: null, after: null, stealName: null, lastKind: null, lang: 'es', live: '', stage: 0, tmo: 0 };
   try { voice.wake = localStorage.getItem('mesa-wake') === '1'; } catch (e) {}
   try { const sv = localStorage.getItem('mesa-vlang'); voice.lang = sv === 'en' ? 'en' : 'es'; } catch (e) {}
 
@@ -708,10 +708,20 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       else if (er === 'network') { vsay(false, T('v.network')); }
       else if (er && er !== 'no-speech' && er !== 'aborted') { vsay(false, 'Voice error: ' + er); }
     };
-    rec.onend = () => { if (voice.on) { try { rec.start(); } catch (e) {} } else renderVoice(); };
+    // Diagnóstico paso a paso: dónde se queda el micrófono
+    voice.stage = 0;
+    rec.onstart = () => { voice.stage = Math.max(voice.stage, 1); vsay(true, T('v.starting')); };
+    rec.onaudiostart = () => { voice.stage = Math.max(voice.stage, 2); clearTimeout(voice.tmo); vsay(true, T('v.open')); };
+    rec.onsoundstart = () => { voice.stage = Math.max(voice.stage, 3); vsay(true, T('v.sound')); };
+    rec.onspeechstart = () => { voice.stage = Math.max(voice.stage, 4); vsay(true, T('v.speech')); };
+    rec.onnomatch = () => { vsay(false, T('v.nomatch2')); };
+    rec.onend = () => { if (voice.on) { setTimeout(() => { if (voice.on) { try { rec.start(); } catch (e) {} } }, 250); } else renderVoice(); };
     voice.rec = rec; voice.on = true;
-    try { rec.start(); } catch (e) {}
-    vsay(true, voice.wake ? T('v.on.wake') : T('v.on'));
+    try { rec.start(); } catch (e) { vsay(false, 'Voice error: ' + (e && e.message)); }
+    vsay(true, T('v.starting'));
+    clearTimeout(voice.tmo);
+    voice.tmo = setTimeout(() => { if (voice.on && voice.stage < 2) vsay(false, T('v.noaudio')); }, 6000);
+    try { navigator.permissions && navigator.permissions.query({ name: 'microphone' }).then((p) => { if (p.state === 'denied') { voice.on = false; try { rec.stop(); } catch (e) {} vsay(false, T('v.denied')); } }); } catch (e) {}
     ui.api.rerender();
   }
   function stopVoice() {
