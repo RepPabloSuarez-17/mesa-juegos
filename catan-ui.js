@@ -494,9 +494,9 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     return ts.map((ti) => (EMO[T0[ti].res] || '') + (T0[ti].num || '')).join(' ');
   };
 
-  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: false, cands: null, after: null, stealName: null, lastKind: null, lang: 'es' };
+  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: false, cands: null, after: null, stealName: null, lastKind: null, lang: 'es', live: '' };
   try { voice.wake = localStorage.getItem('mesa-wake') === '1'; } catch (e) {}
-  try { const sv = localStorage.getItem('mesa-vlang'); voice.lang = sv || ((navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en'); } catch (e) {}
+  try { const sv = localStorage.getItem('mesa-vlang'); voice.lang = sv === 'en' ? 'en' : 'es'; } catch (e) {}
 
   const fire = (a, data) => onClick({ target: { closest: () => ({ dataset: Object.assign({ a }, data || {}), classList: { contains: () => true } }) } });
   function vsay(ok, msg) { voice.ok = ok; voice.msg = msg; renderVoice(); }
@@ -688,20 +688,25 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     if (voice.on) return;
     const rec = new SR();
     rec.lang = voice.lang === 'en' ? 'en-US' : 'es-ES';
-    rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 3;
+    rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 3;
     rec.onresult = (ev) => {
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        if (!ev.results[i].isFinal) continue;
+        if (!ev.results[i].isFinal) { voice.live = ev.results[i][0].transcript; renderVoice(); continue; }
+        voice.live = '';
         let done = null;
         for (let a = 0; a < ev.results[i].length && !done; a++) {
           const txt = ev.results[i][a].transcript; voice.last = txt;
           try { done = voiceCommand(txt); } catch (e) { done = false; }
         }
-        if (done === false) vsay(false, T('v.what') + ' «' + voice.last.trim() + '»'); else if (done === null) { voice.last = ''; renderVoice(); }
+        if (done === false) vsay(false, T('v.what')); else if (done === null) { vsay(true, T('v.listening')); } else renderVoice();
       }
     };
     rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; vsay(false, T('v.denied')); }
+      const er = e && e.error;
+      if (er === 'not-allowed' || er === 'service-not-allowed') { voice.on = false; vsay(false, T('v.denied')); }
+      else if (er === 'audio-capture') { voice.on = false; vsay(false, T('v.nomic')); }
+      else if (er === 'network') { vsay(false, T('v.network')); }
+      else if (er && er !== 'no-speech' && er !== 'aborted') { vsay(false, 'Voice error: ' + er); }
     };
     rec.onend = () => { if (voice.on) { try { rec.start(); } catch (e) {} } else renderVoice(); };
     voice.rec = rec; voice.on = true;
@@ -719,7 +724,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     const el = $('#cg-voice'); if (!el) return;
     if (!voice.on) { el.className = ''; el.innerHTML = voice.msg && !voice.ok ? `<span class="vmsg bad">${esc(voice.msg)}</span>` : ''; if (voice.msg && !voice.ok) { el.className = 'on'; } return; }
     el.className = 'on';
-    el.innerHTML = `<span class="vmic">🎤</span><span class="vmsg ${voice.ok ? '' : 'bad'}">${esc(voice.msg || T('v.listening'))}</span><button data-a="vhelp" title="${T('v.help')}">?</button>`;
+    el.innerHTML = `<span class="vmic">🎤</span><span class="vmsg ${voice.ok ? '' : 'bad'}">${esc(voice.msg || T('v.listening'))}</span>${voice.live || voice.last ? `<span class="vheard">${voice.live ? '… ' : ''}«${esc((voice.live || voice.last).trim())}»</span>` : ''}<button data-a="vlang" data-k="${voice.lang === 'es' ? 'en' : 'es'}" title="${T('v.lang')}">${voice.lang.toUpperCase()}</button><button data-a="vhelp" title="${T('v.help')}">?</button>`;
   }
   // La ayuda de voz está siempre en inglés
   const VOICE_HELP = `<p>Just talk. There is no fixed phrase to learn: say what you want in your own words, in Spanish or English.</p>

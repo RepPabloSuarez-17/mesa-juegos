@@ -459,3 +459,6 @@ label.chk input { width: auto; margin-top: 3px; }
 
 #cg-tradebar .sep { width: 1px; height: 22px; background: #d9a44155; margin: 0 2px; }
 #cg-tradebar button.ib { padding: 7px 10px; font-size: 15px; line-height: 1; }
+
+#cg-voice .vheard { font-style: italic; opacity: .85; margin-left: 8px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cg-voice button[data-a="vlang"] { margin-left: 6px; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; border: 1px solid #d9a44199; background: #4a3119; color: #f6e9cc; }
