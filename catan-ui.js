@@ -334,9 +334,7 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
 <div class="setrow"><span>${T('set.sound')}</span><div class="seg"><button class="${ui.sound ? 'on' : ''}" data-a="sound" data-k="1">${T('set.on')}</button><button class="${ui.sound ? '' : 'on'}" data-a="sound" data-k="0">${T('set.off')}</button></div></div>
 ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can ? 'set.auto.d' : 'set.auto.h')}</small></span><div class="seg"><button class="${g.auto ? 'on' : ''}" data-a="auto" data-k="1" ${can ? '' : 'disabled'}>${T('set.on')}</button><button class="${g.auto ? '' : 'on'}" data-a="auto" data-k="0" ${can ? '' : 'disabled'}>${T('set.off')}</button></div></div>`}
 <div class="setrow"><span>${T('set.cam')}<small>${T('set.cam.d')}</small></span><div class="seg"><button data-a="camreset">${T('cam.reset')}</button><button data-a="camflat">${T('cam.flat')}</button></div></div>
-<div class="setrow"><span>${T('v.title')}<small>${SR ? T('v.set.d') : T('v.unsupported')}</small></span><div class="seg"><button class="${voice.on ? 'on' : ''}" data-a="vtoggle" ${SR ? '' : 'disabled'}>${voice.on ? T('set.on') : T('v.start')}</button></div></div>
-<div class="setrow"><span>${T('v.lang')}<small>${T('v.lang.h')}</small></span><div class="seg"><button class="${voice.lang === 'es' ? 'on' : ''}" data-a="vlang" data-k="es">Español</button><button class="${voice.lang === 'en' ? 'on' : ''}" data-a="vlang" data-k="en">English</button></div></div>
-<div class="setrow"><span>${T('v.wake')}<small>${T('v.wake.h')}</small></span><div class="seg"><button class="${voice.wake ? 'on' : ''}" data-a="vwake" data-k="1">${T('set.on')}</button><button class="${voice.wake ? '' : 'on'}" data-a="vwake" data-k="0">${T('set.off')}</button></div></div>
+<div class="setrow"><span>${T('v.title')}<small>${T('v.soon.d')}</small></span><div class="seg"><button disabled>${T('v.soon')}</button></div></div>
 <div class="setrow"><span></span><button class="big" data-a="leave">${T('a.leave')}</button></div>`, { cls: 'settings' });
   }
   function discardModal(g) {
@@ -376,6 +374,8 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
 
   // ---------- control por voz ----------
   const SR = root.SpeechRecognition || root.webkitSpeechRecognition;
+  const VOICE_ENABLED = false; // voz desactivada de momento (el código queda listo para reactivarla)
+  const isOpera = () => /OPR\/|Opera/.test(navigator.userAgent || '');
   const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[¿?¡!.,;:"“”()]/g, ' ').replace(/\s+/g, ' ').trim();
   const NUM = { cero: 0, uno: 1, una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintiun: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100,
     zero: 0, one: 1, two: 2, to: 2, too: 2, three: 3, four: 4, for: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
@@ -684,6 +684,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
   }
 
   function startVoice() {
+    if (!VOICE_ENABLED) return;
     if (!SR) { vsay(false, T('v.unsupported')); return; }
     if (voice.on) return;
     const rec = new SR();
@@ -705,7 +706,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       const er = e && e.error;
       if (er === 'not-allowed' || er === 'service-not-allowed') { voice.on = false; vsay(false, T('v.denied')); }
       else if (er === 'audio-capture') { voice.on = false; vsay(false, T('v.nomic')); }
-      else if (er === 'network') { vsay(false, T('v.network')); }
+      else if (er === 'network') { vsay(false, isOpera() ? T('v.opera') : T('v.network')); }
       else if (er && er !== 'no-speech' && er !== 'aborted') { vsay(false, 'Voice error: ' + er); }
     };
     // Diagnóstico paso a paso: dónde se queda el micrófono
@@ -720,7 +721,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     try { rec.start(); } catch (e) { vsay(false, 'Voice error: ' + (e && e.message)); }
     vsay(true, T('v.starting'));
     clearTimeout(voice.tmo);
-    voice.tmo = setTimeout(() => { if (voice.on && voice.stage < 2) vsay(false, T('v.noaudio')); }, 6000);
+    voice.tmo = setTimeout(() => { if (voice.on && voice.stage < 2) vsay(false, isOpera() ? T('v.opera') : T('v.noaudio')); }, 6000);
     try { navigator.permissions && navigator.permissions.query({ name: 'microphone' }).then((p) => { if (p.state === 'denied') { voice.on = false; try { rec.stop(); } catch (e) {} vsay(false, T('v.denied')); } }); } catch (e) {}
     ui.api.rerender();
   }
@@ -823,7 +824,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     if (ui.b3) { try { ui.b3.destroy(); } catch (e) {} ui.b3 = null; }
     Object.assign(ui, { code: room.code, mode: null, modal: null, tab: 'bank', bankGive: null, bankGet: null, draft: { give: {}, want: {} }, dc: null, plenty: [], lastRoll: room.g.rollId, lastSeq: -1, started: false, rule: 0, modalKey: '', guideKey: '', eyeFor: -1, reveal: false, annQ: [], annBusy: false, turnKey: '' });
     main.innerHTML = `<div id="cg">
-<div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="vtoggle" id="cg-micbtn">🎤</button><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
+<div id="cg-top"><div class="ttl"><span class="logo">${ic('settle', 26)}</span><b>Catán</b><span class="rm"></span></div><div class="topbtns"><button data-a="rules">${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button></div></div>
 <div id="cg-body"><aside id="cg-players"></aside>
 <section id="cg-center"><div id="cg-boardwrap"><div id="cg-tradebar"></div><div id="cg-big"></div><div id="cg-voice"></div><div id="cg-dice" class="dice-tray"></div><div id="cg-toasts"></div></div>
 <div id="cg-bottom"><button id="cg-eye" data-a="eye" style="display:none"></button><div id="cg-hand"></div><div id="cg-dev"></div><div id="cg-build"></div></div></section>
@@ -839,7 +840,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     ui.api = api; ui.room = room; ui.g = g;
     const ttl = $('#cg-top .ttl');
     ttl.innerHTML = `<span class="logo">${ic('settle', 26)}</span><b>${esc(root.GAMES.find((x) => x.id === room.game).name[root.I18N.lang])}</b><span class="rm">${T('room')} ${esc(room.code)}</span>`;
-    $('#cg-top .topbtns').innerHTML = `<button data-a="vtoggle" id="cg-micbtn" class="${voice.on ? 'micon' : ''}" title="${T('v.title')}">🎤${voice.on ? ' ●' : ''}</button><button data-a="rules">📖 ${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button>`;
+    $('#cg-top .topbtns').innerHTML = `<button data-a="rules">📖 ${T('a.rules')}</button><button data-a="settings">⚙ ${T('a.settings')}</button>`;
     if (g.phase !== 'main' && g.phase !== 'special') ui.mode = null;
     document.querySelectorAll('#cg-boardwrap .cam [data-cam]').forEach((b) => { b.title = T('cam.' + b.dataset.cam); });
     processEvents(g);
