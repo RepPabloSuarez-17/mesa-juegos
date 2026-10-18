@@ -456,3 +456,6 @@ label.chk input { width: auto; margin-top: 3px; }
 .vhelp li { margin-bottom: 3px; }
 
 .locrow input.bad { border-color: #c0392b; box-shadow: 0 0 0 2px rgba(192,57,43,.35); }
+
+#cg-tradebar .sep { width: 1px; height: 22px; background: #d9a44155; margin: 0 2px; }
+#cg-tradebar button.ib { padding: 7px 10px; font-size: 15px; line-height: 1; }

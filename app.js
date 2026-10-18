@@ -290,7 +290,7 @@
     leaveAll(true);
     const room = newRoom('LOCL', state.game);
     names.forEach((nm, i) => room.add('L' + i, nm));
-    net.privacy = !!privacy;
+    net.privacy = !!privacy; room.local = true;
     room.handle('L0', { t: 'start' });
     net.room = room; net.role = 'local';
     broadcast();

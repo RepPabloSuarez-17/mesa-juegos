@@ -4,7 +4,8 @@
 (function (root) {
   const Board = root.CatanBoard;
   const SZ = 60, PERSP = 0.00045;
-  const HT = { ore: 16, brick: 12.5, wood: 12.5, wool: 10.5, grain: 9.5, desert: 8 };
+  const HT = { ore: 30, brick: 23, wood: 21, wool: 16, grain: 14, desert: 11 };
+  const INS = 6, RB = SZ - 1; // chaflán de la cara superior y radio del cuerpo
   const TOP = { wood: ['#4b8f52', '#245a2e'], brick: ['#d97650', '#a24a2c'], wool: ['#aadb70', '#72ad46'], grain: ['#f5d468', '#d1a53c'], ore: ['#b4bbc6', '#737c89'], desert: ['#f2e3b4', '#cebb7f'] };
   const BAND = { wood: '#2b6c37', brick: '#9c4528', wool: '#62a03a', grain: '#b88c2d', ore: '#5f6874', desert: '#bba672' };
   const DIRT = '#5b4229';
@@ -40,7 +41,7 @@
       const out = []; let tries = 0;
       while (out.length < n && tries < 400) {
         tries++;
-        const a = r() * 6.283, d = (rmin + r() * (rmax - rmin)) * SZ, x = Math.cos(a) * d, y = Math.sin(a) * d;
+        const a = r() * 6.283, d = (rmin + r() * (rmax - rmin)) * SZ * 0.9, x = Math.cos(a) * d, y = Math.sin(a) * d;
         if (out.every((p) => Math.hypot(p.x - x, p.y - y) > minD)) out.push({ x, y });
       }
       return out;
@@ -153,7 +154,7 @@
     const C = { x: board.center.x * SZ, y: board.center.y * SZ };
     const T = tiles.map((t, i) => {
       const c = Board.hexCenter(t), d = decor(t.res, rng(i * 7919 + 13));
-      return { i, x: c.x * SZ - C.x, y: c.y * SZ - C.y, h: HT[t.res], res: t.res, num: t.num, ground: d.ground, objs: d.objs };
+      return { i, x: c.x * SZ - C.x, y: c.y * SZ - C.y, h: HT[t.res] + (rng(i * 31 + 5)() * 4 - 2), res: t.res, num: t.num, ground: d.ground, objs: d.objs };
     });
     const V = G.verts.map((v) => ({ x: v.x * SZ - C.x, y: v.y * SZ - C.y, h: Math.max.apply(null, v.tiles.map((ti) => T[ti].h)) }));
     const E = G.edges.map((e) => ({ a: e.a, b: e.b, h: Math.max.apply(null, e.tiles.map((ti) => T[ti].h)) }));
@@ -178,7 +179,7 @@
     svg.innerHTML = `<defs>
 ${grads}
 <pattern id="noise" width="40" height="40" patternUnits="userSpaceOnUse">${dots.join('')}</pattern>
-<clipPath id="hexclip"><polygon points="${hexLocal(SZ - 1.5)}"/></clipPath>
+<clipPath id="hexclip"><polygon points="${hexLocal(RB - INS)}"/></clipPath>
 <radialGradient id="tokG" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#e6d6a8"/></radialGradient>
 <linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".24"/></linearGradient>
 <radialGradient id="shadowG"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".6" stop-color="#000" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
@@ -248,7 +249,9 @@ ${grads}
     // ---------- dibujo ----------
     function render(now) {
       if (!last) return;
-      const { g, colors, spots, collect } = last;
+      const { g, colors, spots, collect, labels } = last;
+      const LAB = [];
+      const lab = (x, y, n, k) => LAB.push(`<g transform="translate(${f1(x)},${f1(y)}) scale(${f1(Math.max(0.8, k) * 1.15)})" pointer-events="none"><circle r="10" fill="#140d06" fill-opacity=".88" stroke="#ffe9a6" stroke-width="1.4"/><text y="4" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="${n > 99 ? 8 : n > 9 ? 10.5 : 12}" fill="#fff">${n}</text></g>`);
       anim = false;
       const lite = !!(drag && drag.on);
       setTrig();
@@ -271,26 +274,46 @@ ${grads}
       // hexágonos de atrás hacia delante
       const order = T.map((t) => ({ t, d: P(t.x, t.y, 0).d })).sort((a, b) => a.d - b.d);
       order.forEach(({ t }) => {
-        const corners = Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return [t.x + SZ * Math.cos(a), t.y + SZ * Math.sin(a)]; });
-        const band = Math.min(4, t.h * 0.35);
+        const ringAt = (rad, z) => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return P(t.x + rad * Math.cos(a), t.y + rad * Math.sin(a), z); });
+        const rc = (rad) => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return [t.x + rad * Math.cos(a), t.y + rad * Math.sin(a)]; });
+        const corners = rc(RB), bevel = Math.min(5.5, t.h * 0.2), zt = t.h - bevel, band = Math.min(5, zt * 0.34), z1 = zt - band;
+        const inner = rc(RB - INS);
         for (let i = 0; i < 6; i++) {
           const na = Math.PI / 180 * 60 * i, n = [Math.cos(na), Math.sin(na), 0];
           if (!facing(n)) continue;
           const A = corners[i], B = corners[(i + 1) % 6];
-          const lit = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1]), k = 0.6 + 0.6 * lit;
+          const lit = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1]), k = 0.55 + 0.65 * lit;
           const q = (z) => [P(A[0], A[1], z), P(B[0], B[1], z)];
-          const z1 = t.h - band, lo = q(0), mid = q(z1), hi = q(t.h);
+          const lo = q(0), mid = q(z1), hi = q(zt);
           S.push(`<polygon points="${poly([lo[0], lo[1], mid[1], mid[0]])}" fill="${shade(DIRT, k)}" stroke="#2a1b0e" stroke-width="1"/>`);
+          if (!lite) [0.33, 0.66].forEach((f) => { const l = q(z1 * f); S.push(`<line x1="${f1(l[0].x)}" y1="${f1(l[0].y)}" x2="${f1(l[1].x)}" y2="${f1(l[1].y)}" stroke="#000" stroke-opacity=".2" stroke-width="1.4"/>`); });
           S.push(`<polygon points="${poly([mid[0], mid[1], hi[1], hi[0]])}" fill="${shade(BAND[t.res], k)}" stroke="#2a1b0e" stroke-width="1"/>`);
+          const nb = norm3([n[0] * bevel, n[1] * bevel, INS]);
+          if (facing(nb)) {
+            const ci = [P(inner[i][0], inner[i][1], t.h), P(inner[(i + 1) % 6][0], inner[(i + 1) % 6][1], t.h)];
+            const lb = Math.max(0, nb[0] * LIGHT[0] + nb[1] * LIGHT[1] + nb[2] * LIGHT[2]);
+            S.push(`<polygon points="${poly([hi[0], hi[1], ci[1], ci[0]])}" fill="${shade(TOP[t.res][1], 0.7 + 0.5 * lb)}" stroke="#2c1e12" stroke-width=".8" stroke-linejoin="round"/>`);
+          }
         }
-        const top = corners.map((c) => P(c[0], c[1], t.h));
-        S.push(`<polygon points="${poly(top)}" fill="url(#gr-${t.res})" stroke="#2c1e12" stroke-width="1.6" stroke-linejoin="round"/>`);
+        const top = ringAt(RB - INS, t.h);
+        S.push(`<polygon points="${poly(top)}" fill="url(#gr-${t.res})" stroke="#2c1e12" stroke-width="1.4" stroke-linejoin="round"/>`);
         S.push(`<polygon points="${poly(top)}" fill="url(#bevel)"/>`);
         for (let i = 0; i < 6 && !lite; i++) {
           const na = Math.PI / 180 * (60 * i), lit = Math.cos(na) * LIGHT[0] + Math.sin(na) * LIGHT[1];
-          S.push(`<line x1="${f1(top[i].x)}" y1="${f1(top[i].y)}" x2="${f1(top[(i + 1) % 6].x)}" y2="${f1(top[(i + 1) % 6].y)}" stroke="${lit > 0 ? '#fff' : '#000'}" stroke-opacity="${(Math.abs(lit) * 0.38).toFixed(2)}" stroke-width="2.4" stroke-linecap="round"/>`);
+          S.push(`<line x1="${f1(top[i].x)}" y1="${f1(top[i].y)}" x2="${f1(top[(i + 1) % 6].x)}" y2="${f1(top[(i + 1) % 6].y)}" stroke="${lit > 0 ? '#fff' : '#000'}" stroke-opacity="${(Math.abs(lit) * 0.4).toFixed(2)}" stroke-width="2.2" stroke-linecap="round"/>`);
         }
-        if (!lite) S.push(`<g transform="${aff(t.x, t.y, t.h)}"><g clip-path="url(#hexclip)">${t.ground}<polygon points="${hexLocal(SZ)}" fill="url(#noise)"/></g><polygon points="${hexLocal(SZ - 4.5)}" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.3"/></g>`);
+        if (!lite) S.push(`<g transform="${aff(t.x, t.y, t.h)}"><g clip-path="url(#hexclip)">${t.ground}<polygon points="${hexLocal(SZ)}" fill="url(#noise)"/></g><polygon points="${hexLocal(RB - INS - 3.5)}" fill="none" stroke="#fff" stroke-opacity=".2" stroke-width="1.2"/></g>`);
+        const mine = [];
+        t.objs.forEach((o, oi) => {
+          if (lite && oi % 2) return;
+          const p = P(t.x + o.x, t.y + o.y, t.h);
+          mine.push({ d: p.d + 0.001 * p.y, s: `<g transform="translate(${f1(p.x)},${f1(p.y - 10 * p.k * o.s)}) scale(${f1(p.k * o.s * (o.f || 1))},${f1(p.k * o.s)})">${o.svg}</g>` });
+        });
+        mine.sort((a, b) => a.d - b.d).forEach((it) => S.push(it.s));
+        if (t.num) {
+          const p = P(t.x, t.y, t.h), top2 = P(t.x, t.y, t.h + 7), k = p.k, hot = t.num === 6 || t.num === 8, dots = 6 - Math.abs(7 - t.num);
+          S.push(`<g><ellipse cx="${f1(p.x)}" cy="${f1(p.y + 1)}" rx="${f1(22 * k)}" ry="${f1(22 * k * Math.max(0.35, cp))}" fill="url(#shadowG)"/><g transform="translate(${f1(top2.x)},${f1(top2.y)}) scale(${f1(k)})"><ellipse cy="3.2" rx="17" ry="17" fill="#7a5a2c"/><circle r="17" fill="url(#tokG)" stroke="#6b4a24" stroke-width="2"/><circle r="14" fill="none" stroke="#c9b37a" stroke-width=".8"/><path d="M-12 -7 A14 14 0 0 1 4 -13.4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/><text y="3" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t.num > 9 ? 16 : 18}" fill="${hot ? '#b3261a' : '#2b1d12'}">${t.num}</text><text y="12" text-anchor="middle" font-size="6.5" letter-spacing="1" fill="${hot ? '#b3261a' : '#2b1d12'}">${'●'.repeat(dots)}</text></g></g>`);
+        }
       });
 
       // embarcaderos de los puertos
@@ -317,19 +340,6 @@ ${grads}
         roadFaces.push({ d: P(cx, cy, ed.h).d, s: meshSVG(box(cx, cy, ed.h, len - 25, 8.5, 5.5, ang, col), dz) });
       });
       roadFaces.sort((a, b) => a.d - b.d).forEach((r) => S.push(r.s));
-
-      // objetos de pie: se ordenan por profundidad
-      T.forEach((t) => {
-        t.objs.forEach((o, oi) => {
-          if (lite && oi % 2) return; // al arrastrar se dibuja la mitad del decorado para ir fluido
-          const p = P(t.x + o.x, t.y + o.y, t.h), s = p.k * o.s * (o.f || 1);
-          items.push({ d: p.d + 0.001 * p.y, s: `<g transform="translate(${f1(p.x)},${f1(p.y - 10 * p.k * o.s)}) scale(${f1(p.k * o.s * (o.f || 1))},${f1(p.k * o.s)})">${o.svg}</g>` });
-        });
-        if (t.num) {
-          const p = P(t.x, t.y, t.h), top = P(t.x, t.y, t.h + 7), k = p.k, hot = t.num === 6 || t.num === 8, dots = 6 - Math.abs(7 - t.num);
-          items.push({ d: p.d + 56, s: `<g><ellipse cx="${f1(p.x)}" cy="${f1(p.y + 1)}" rx="${f1(22 * k)}" ry="${f1(22 * k * Math.max(0.35, cp))}" fill="url(#shadowG)"/><g transform="translate(${f1(top.x)},${f1(top.y)}) scale(${f1(k)})"><ellipse cy="3.2" rx="17" ry="17" fill="#7a5a2c"/><circle r="17" fill="url(#tokG)" stroke="#6b4a24" stroke-width="2"/><circle r="14" fill="none" stroke="#c9b37a" stroke-width=".8"/><path d="M-12 -7 A14 14 0 0 1 4 -13.4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/><text y="3" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${t.num > 9 ? 16 : 18}" fill="${hot ? '#b3261a' : '#2b1d12'}">${t.num}</text><text y="12" text-anchor="middle" font-size="6.5" letter-spacing="1" fill="${hot ? '#b3261a' : '#2b1d12'}">${'●'.repeat(dots)}</text></g></g>` });
-        }
-      });
 
       // puertos
       harborPos.forEach((p) => {
@@ -371,24 +381,27 @@ ${grads}
       });
       if (spots && spots.kind) {
         if (spots.kind === 'road') {
-          spots.ids.forEach((e) => {
+          spots.ids.forEach((e, ix) => {
             const ed = E[e], A = V[ed.a], B = V[ed.b], dx = B.x - A.x, dy = B.y - A.y, l = Math.hypot(dx, dy), s0 = 9 / l;
             const a = P(A.x + dx * s0, A.y + dy * s0, ed.h + 3), b = P(B.x - dx * s0, B.y - dy * s0, ed.h + 3);
+ if (labels && labels.indexOf(e) >= 0) { const m = P((A.x + B.x) / 2, (A.y + B.y) / 2, ed.h + 12); lab(m.x, m.y, labels.indexOf(e) + 1, m.k); }
             S.push(`<line class="spot-e" data-a="spot-e" data-id="${e}" x1="${f1(a.x)}" y1="${f1(a.y)}" x2="${f1(b.x)}" y2="${f1(b.y)}" style="stroke-width:${f1(12 * a.k)}px"/>`);
           });
         } else if (spots.kind === 'robber') {
-          spots.ids.forEach((ti) => {
-            const t = T[ti], pts = Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return P(t.x + (SZ - 3) * Math.cos(a), t.y + (SZ - 3) * Math.sin(a), t.h + 1); });
+          spots.ids.forEach((ti, ix) => {
+            const t = T[ti]; if (labels && labels.indexOf(ti) >= 0) { const m = P(t.x, t.y + 26, t.h + 14); lab(m.x, m.y, labels.indexOf(ti) + 1, m.k); }
+            const pts = Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 180 * (60 * i - 30); return P(t.x + (SZ - 3) * Math.cos(a), t.y + (SZ - 3) * Math.sin(a), t.h + 1); });
             S.push(`<polygon class="spot-t" data-a="spot-t" data-id="${ti}" points="${poly(pts)}"/>`);
           });
         } else {
-          spots.ids.forEach((v) => {
+          spots.ids.forEach((v, ix) => {
             const p = V[v], q = P(p.x, p.y, p.h + (spots.kind === 'city' ? 14 : 6));
+            if (labels && labels.indexOf(v) >= 0) { const m = P(p.x, p.y, p.h + 30); lab(m.x, m.y, labels.indexOf(v) + 1, m.k); }
             S.push(`<circle class="spot-v" data-a="spot-v" data-id="${v}" cx="${f1(q.x)}" cy="${f1(q.y)}" r="${f1((spots.kind === 'city' ? 22 : 15) * q.k)}"/>`);
           });
         }
       }
-      sceneG.innerHTML = S.join('');
+      sceneG.innerHTML = S.join('') + LAB.join('');
       if (anim) schedule();
     }
 

@@ -62,7 +62,8 @@
     const collect = g.auto || g.phase === 'setup' ? [] : (g.pendTiles || []);
     if (spots) spots.ids = spots.ids.slice().sort((a, b) => a - b);
     ui.spots = spots;
-    ui.b3.draw({ g, colors: room.players.map((p) => p.color), spots, collect, labels: voice.on });
+    ui.b3.draw({ g, colors: room.players.map((p) => p.color), spots, collect, labels: voice.cands ? voice.cands.ids : false });
+    voiceHook();
   }
 
   // ---------- paneles ----------
@@ -122,7 +123,7 @@
       bt('city', 'city', build && aff(COST.city) && u.city < LIM.city && (L.city || []).length) +
       bt('dev', 'dev', build && aff(COST.dev) && g.deckN > 0, `<small class="deckn">${g.deckN}</small>`);
 
-    $('#cg-tradebar').innerHTML = `<span class="tl">${T('a.trade')}</span><button data-a="trade" data-k="bank" ${main ? '' : 'disabled'}>🏦 ${T('tr.bank')}</button><button data-a="trade" data-k="players" ${main ? '' : 'disabled'}>🤝 ${T('tr.players')}</button>`;
+    $('#cg-tradebar').innerHTML = `<span class="tl">${T('a.trade')}</span><button data-a="trade" data-k="bank" ${main ? '' : 'disabled'}>🏦 ${T('tr.bank')}</button><button data-a="trade" data-k="players" ${main ? '' : 'disabled'}>🤝 ${T('tr.players')}</button><span class="sep"></span><button class="ib" data-a="undo" title="${T('a.undo')}" ${g.canUndo ? '' : 'disabled'}>↩</button><button class="ib" data-a="pause" title="${T('a.pause')}" ${ui.api.local || ui.api.isHost ? '' : 'disabled'}>II</button>`;
   }
 
   // Pistas sutiles según el momento de la partida. No se menciona nunca recoger recursos: eso lo debe notar el jugador.
@@ -334,6 +335,7 @@ ${o.resp[i] === 1 ? `<button class="mini go" data-a="confirm" data-id="${i}">${T
 ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can ? 'set.auto.d' : 'set.auto.h')}</small></span><div class="seg"><button class="${g.auto ? 'on' : ''}" data-a="auto" data-k="1" ${can ? '' : 'disabled'}>${T('set.on')}</button><button class="${g.auto ? '' : 'on'}" data-a="auto" data-k="0" ${can ? '' : 'disabled'}>${T('set.off')}</button></div></div>`}
 <div class="setrow"><span>${T('set.cam')}<small>${T('set.cam.d')}</small></span><div class="seg"><button data-a="camreset">${T('cam.reset')}</button><button data-a="camflat">${T('cam.flat')}</button></div></div>
 <div class="setrow"><span>${T('v.title')}<small>${SR ? T('v.set.d') : T('v.unsupported')}</small></span><div class="seg"><button class="${voice.on ? 'on' : ''}" data-a="vtoggle" ${SR ? '' : 'disabled'}>${voice.on ? T('set.on') : T('v.start')}</button></div></div>
+<div class="setrow"><span>${T('v.lang')}<small>${T('v.lang.h')}</small></span><div class="seg"><button class="${voice.lang === 'es' ? 'on' : ''}" data-a="vlang" data-k="es">Español</button><button class="${voice.lang === 'en' ? 'on' : ''}" data-a="vlang" data-k="en">English</button></div></div>
 <div class="setrow"><span>${T('v.wake')}<small>${T('v.wake.h')}</small></span><div class="seg"><button class="${voice.wake ? 'on' : ''}" data-a="vwake" data-k="1">${T('set.on')}</button><button class="${voice.wake ? '' : 'on'}" data-a="vwake" data-k="0">${T('set.off')}</button></div></div>
 <div class="setrow"><span></span><button class="big" data-a="leave">${T('a.leave')}</button></div>`, { cls: 'settings' });
   }
@@ -356,6 +358,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     const el = $('#cg-modal');
     let h = '';
     if (room.aborted || g.phase === 'over') h = endModal(g, room);
+    else if (g.paused) h = modal(`<h2>⏸ ${T('v.paused')}</h2><p class="sub">${T('v.pausedmsg')}</p>${ui.api.local || ui.api.isHost ? `<button class="big primary" data-a="resume">▶ ${T('a.resume')}</button>` : ''}`, { force: true });
     else if (g.phase === 'discard' && g.discard[g.me]) { if (!ui.dc) ui.dc = {}; h = discardModal(g); }
     else {
       ui.dc = null;
@@ -394,109 +397,288 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     return out;
   }
   const resIn = (words) => words.map((w, i) => (RESW[w] ? { r: RESW[w], i } : null)).filter(Boolean);
-  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: true };
-  try { voice.wake = localStorage.getItem('mesa-wake') !== '0'; } catch (e) {}
+  // Recursos extra (terrenos) y tolerancia a plurales / pequeñas faltas de reconocimiento
+  Object.assign(RESW, { bosque: 'wood', bosques: 'wood', forest: 'wood', woods: 'wood', tree: 'wood', trees: 'wood', arboles: 'wood', colina: 'brick', colinas: 'brick', hill: 'brick', hills: 'brick', pasto: 'wool', prado: 'wool', pradera: 'wool', pasture: 'wool', campo: 'grain', campos: 'grain', field: 'grain', fields: 'grain', cultivo: 'grain', montana: 'ore', montanas: 'ore', mountain: 'ore', mountains: 'ore', roca: 'ore', rocas: 'ore', desierto: 'desert', desert: 'desert', piedras: 'ore' });
+  const RKEYS = Object.keys(RESW).filter((k) => k.length >= 5);
+  const lev1 = (a, b) => {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+    const [s, l] = a.length < b.length ? [a, b] : [b, a];
+    return s.slice(i) === l.slice(i + 1);
+  };
+  const resWord = (w) => {
+    if (RESW[w]) return RESW[w];
+    if (w.length > 3 && w[w.length - 1] === 's' && RESW[w.slice(0, -1)]) return RESW[w.slice(0, -1)];
+    if (w.length >= 5) { const k = RKEYS.find((x) => lev1(w, x)); if (k) return RESW[k]; }
+    return null;
+  };
+  const resIn2 = (words) => words.map((w, i) => { const r = resWord(w); return r ? { r, i } : null; }).filter(Boolean);
+  const EMO = { wood: '🌲', brick: '🧱', wool: '🐑', grain: '🌾', ore: '⛰️', desert: '🏜️' };
+  const NOTNUM = { to: 1, too: 1, for: 1, a: 1, un: 1, una: 1, uno: 1 };
+
+  // «el 4 de trigo, el 8 de piedra y el 10 de oveja» -> [{res:'grain',num:4},{res:'ore',num:8},{res:'wool',num:10}]
+  function hexMentions(words) {
+    const ns = numsIn(words).filter((q) => q.n >= 2 && q.n <= 12 && !NOTNUM[words[q.i]]);
+    const rs = resIn2(words);
+    const usedR = new Set(), usedN = new Set(), out = [];
+    const pairUp = (dir) => {
+      const got = [];
+      rs.forEach((r) => {
+        if (usedR.has(r.i)) return;
+        for (let j = r.i + dir, c = 0; j >= 0 && j < words.length && c < 5; j += dir, c++) {
+          if (rs.some((x) => x.i === j)) break;
+          const q = ns.find((x) => x.i === j);
+          if (q) { if (!usedN.has(q.i)) got.push({ r, q }); break; }
+        }
+      });
+      return got;
+    };
+    const A = pairUp(-1), B = pairUp(1);
+    // orientación dominante: «4 de trigo» (número antes) o «trigo 4» (número después)
+    (A.length >= B.length ? A : B).forEach((p) => { if (!usedR.has(p.r.i) && !usedN.has(p.q.i)) { usedR.add(p.r.i); usedN.add(p.q.i); out.push({ res: p.r.r, num: p.q.n, i: Math.min(p.r.i, p.q.i) }); } });
+    (A.length >= B.length ? B : A).forEach((p) => { if (!usedR.has(p.r.i) && !usedN.has(p.q.i)) { usedR.add(p.r.i); usedN.add(p.q.i); out.push({ res: p.r.r, num: p.q.n, i: Math.min(p.r.i, p.q.i) }); } });
+    rs.forEach((r) => { if (!usedR.has(r.i)) out.push({ res: r.r, i: r.i }); });
+    ns.forEach((q) => { if (!usedN.has(q.i) && !out.some((m) => m.num === q.n)) out.push({ num: q.n, i: q.i }); });
+    return out.sort((a, b) => a.i - b.i);
+  }
+
+  // Máximo de condiciones que se pueden asignar a hexágonos distintos de la lista
+  function matchCount(conds, tileIdxs, T0) {
+    let best = 0;
+    const rec = (ci, used, m) => {
+      if (m + (conds.length - ci) <= best) return;
+      if (ci === conds.length) { best = Math.max(best, m); return; }
+      const c = conds[ci];
+      tileIdxs.forEach((ti, k) => {
+        if (used & (1 << k)) return;
+        const t = T0[ti];
+        if ((!c.res || t.res === c.res) && (!c.num || t.num === c.num)) rec(ci + 1, used | (1 << k), m + 1);
+      });
+      rec(ci + 1, used, m);
+    };
+    rec(0, 0, 0);
+    return best;
+  }
+  function graphOf(g) {
+    const key = g.board.tiles.map((t) => t.q + ',' + t.r).join(';');
+    if (ui.gkey !== key) { ui.gkey = key; ui.graph = root.CatanBoard.buildGraph(g.board.tiles); }
+    return ui.graph;
+  }
+  // Busca entre los puntos legales los que encajan con la descripción
+  function candidatesFor(kind, conds, g) {
+    const L = g.legal || {}, T0 = g.board.tiles, G = graphOf(g);
+    const ids = kind === 'robber' ? (L.robber || []) : (L[kind] || []);
+    const need = kind === 'robber' ? 1 : conds.length;
+    const cs = kind === 'robber' ? conds.slice(0, 1) : conds;
+    const sc = ids.map((id) => {
+      if (kind === 'robber') return matchCount(cs, [id], T0);
+      if (kind === 'road') {
+        const e = G.edges[id], ends = Array.from(new Set(G.verts[e.a].tiles.concat(G.verts[e.b].tiles)));
+        return matchCount(cs, ends, T0) + (matchCount(cs, e.tiles, T0) === cs.length ? 0.5 : 0);
+      }
+      return matchCount(cs, G.verts[id].tiles, T0);
+    });
+    const max = Math.max(0, ...sc);
+    if (max <= 0) return { ids: [], full: false };
+    let full = ids.filter((id, i) => sc[i] >= need);
+    if (full.length) {
+      if (kind === 'road') { const b = full.filter((id) => sc[ids.indexOf(id)] % 1); if (b.length) full = b; }
+      return { ids: full, full: true };
+    }
+    return { ids: ids.filter((id, i) => sc[i] === max), full: false };
+  }
+  const spotText = (kind, id, g) => {
+    const G = graphOf(g), T0 = g.board.tiles;
+    const ts = kind === 'robber' ? [id] : kind === 'road' ? G.edges[id].tiles : G.verts[id].tiles;
+    return ts.map((ti) => (EMO[T0[ti].res] || '') + (T0[ti].num || '')).join(' ');
+  };
+
+  const voice = { on: false, rec: null, last: '', msg: '', ok: true, armUntil: 0, wake: false, cands: null, after: null, stealName: null, lastKind: null, lang: 'es' };
+  try { voice.wake = localStorage.getItem('mesa-wake') === '1'; } catch (e) {}
+  try { const sv = localStorage.getItem('mesa-vlang'); voice.lang = sv || ((navigator.language || '').toLowerCase().startsWith('es') ? 'es' : 'en'); } catch (e) {}
 
   const fire = (a, data) => onClick({ target: { closest: () => ({ dataset: Object.assign({ a }, data || {}), classList: { contains: () => true } }) } });
   function vsay(ok, msg) { voice.ok = ok; voice.msg = msg; renderVoice(); }
   function speak(text) {
-    try { const u = new SpeechSynthesisUtterance(text); u.lang = root.I18N.lang === 'en' ? 'en-US' : 'es-ES'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = voice.lang === 'en' ? 'en-US' : 'es-ES'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
   }
 
-  // Interpreta una frase y ejecuta la acción. Devuelve true si la entendió.
+  function doPlace(kind, id) {
+    const g = ui.g;
+    voice.cands = null; voice.lastKind = kind;
+    if (kind === 'robber') act({ t: 'moveRobber', tile: id });
+    else act({ t: 'build', kind, id });
+    ui.mode = null;
+    vsay(true, '✔ ' + (kind === 'robber' ? '🦹 ' : T('b.' + kind) + ' · ') + spotText(kind, id, g));
+    ui.api.rerender();
+  }
+  // Resuelve una descripción y coloca, o pide que se aclare señalando los puntos con números
+  function placeFlow(kind, conds) {
+    const g = ui.g;
+    if ((kind === 'settlement' || kind === 'city' || kind === 'road') && (g.phase === 'main' || g.phase === 'special') && ui.mode !== kind) { ui.mode = kind; }
+    const r = candidatesFor(kind, conds, g);
+    if (!r.ids.length) { voice.cands = null; ui.api.rerender(); vsay(false, T('v.nomatch')); return true; }
+    if (r.full && r.ids.length === 1) { doPlace(kind, r.ids[0]); return true; }
+    if (r.ids.length > 12) { voice.cands = null; vsay(false, T('v.toomany', { n: r.ids.length })); return true; }
+    voice.cands = { kind, ids: r.ids, conds, t: Date.now() };
+    ui.api.rerender();
+    vsay(true, T(r.full ? 'v.which' : 'v.closest'));
+    return true;
+  }
+  // Tareas que esperan a que llegue el nuevo estado (tras deshacer o mover el ladrón)
+  function voiceHook() {
+    const g = ui.g; if (!g) return;
+    if (voice.after) {
+      const a = voice.after;
+      if (Date.now() - a.t > 5000) voice.after = null;
+      else if (g.seq !== a.seq) { voice.after = null; setTimeout(() => { if (ui.g) placeFlow(a.kind, a.conds); }, 40); }
+    }
+    if (voice.stealName) {
+      const s = voice.stealName;
+      if (Date.now() - s.t > 6000) voice.stealName = null;
+      else if (g.phase === 'steal' && myTurn()) { voice.stealName = null; const v = (g.victims || []).find((i) => nameMatch(nameOf(i), s.text)); if (v !== undefined) setTimeout(() => fire('steal', { id: v }), 40); }
+    }
+  }
+  const nameMatch = (name, t) => { const nm = norm(name); return nm && (' ' + t + ' ').indexOf(' ' + nm + ' ') >= 0; };
+  const ORD = { primero: 1, primera: 1, first: 1, segundo: 2, segunda: 2, second: 2, tercero: 3, tercera: 3, third: 3, cuarto: 4, cuarta: 4, fourth: 4, quinto: 5, quinta: 5, fifth: 5, sexto: 6, sexta: 6, sixth: 6, septimo: 7, seventh: 7, octavo: 8, eighth: 8 };
+
+  // Interpreta una frase libre y ejecuta la acción. true = entendida, false = no entendida, null = ignorada.
   function voiceCommand(raw) {
     const g = ui.g; if (!g) return false;
     let t = norm(raw);
-    const wakeRe = /\b(catan|catanes|catane|kattan|cattan|katan)\b/;
     if (voice.wake) {
-      const had = wakeRe.test(t);
-      if (!had && Date.now() > voice.armUntil) return null; // no era para el juego
+      const wakeRe = /\b(catan|catanes|catane|kattan|cattan|katan)\b/;
+      if (!wakeRe.test(t) && Date.now() > voice.armUntil) return null;
       t = t.replace(/\b(oye|hey|ok|vale)?\s*(catan|catanes|catane|kattan|cattan|katan)\b/, ' ').replace(/\s+/g, ' ').trim();
       if (!t) { voice.armUntil = Date.now() + 7000; vsay(true, T('v.listening')); return true; }
       voice.armUntil = 0;
     }
-    const w = t.split(' '), nums = numsIn(w), ress = resIn(w), has = (re) => re.test(t);
+    if (!t) return null;
+    const w = t.split(' '), nums = numsIn(w), ress = resIn2(w), has = (re) => re.test(t);
     const my = myTurn();
-    const L = g.legal || {};
     const need = () => { if (!my) { vsay(false, T('v.notyou')); return true; } return false; };
+    if (voice.cands && Date.now() - voice.cands.t > 25000) { voice.cands = null; ui.api.rerender(); }
 
-    if (has(/\b(que hago|ayuda|help|what do i do|what now)\b/)) { const i = guideInfo(g); const x = i.title + '. ' + (i.text || ''); speak(x); vsay(true, x); return true; }
+    // ---- pausa / reanudar (siempre disponibles)
+    if (g.paused) {
+      if (has(/\b(reanuda\w*|continua\w*|resume|continue|unpause|sigue|seguir|play)\b/)) { fire('resume'); vsay(true, T('v.resumed')); return true; }
+      vsay(false, T('v.pausedmsg')); return true;
+    }
+    if (has(/\b(pausa|pausar|pausad[oa]|pause|hold on|espera|para el juego|stop the game)\b/)) { fire('pause'); vsay(true, T('v.paused')); return true; }
+
+    // ---- ayuda, reglas, cancelar
+    if (has(/\b(que hago|que toca|what do i do|what now|what next|que sigue|dime que hacer)\b/)) { const i = guideInfo(g); const x = i.title + '. ' + (i.text || ''); speak(x); vsay(true, x); return true; }
+    if (has(/\b(que puedo decir|comandos|commands|what can i say|help|ayuda)\b/)) { ui.modal = 'vhelp'; ui.api.rerender(); return true; }
     if (has(/\b(reglas|rules|rulebook)\b/)) { fire('rules'); vsay(true, T('a.rules')); return true; }
-    if (has(/\b(cancela|cancelar|atras|olvidalo|cancel|never ?mind|back)\b/)) { ui.mode = null; ui.modal = null; ui.api.rerender(); vsay(true, T('a.cancel')); return true; }
-    // cámara
+    if (has(/\b(cancela|cancelar|cancel|never ?mind|olvidalo|olvida)\b/)) { voice.cands = null; voice.after = null; ui.mode = null; ui.modal = null; ui.api.rerender(); vsay(true, T('a.cancel')); return true; }
+
+    // ---- deshacer / retroceder
+    const kindHint = has(/\b(camino|caminos|carretera|calle|road)\b/) ? 'road' : has(/\b(ciudad|city|town)\b/) ? 'city' : has(/\b(poblado|pueblo|casa|asentamiento|settlement|house|village)\b/) ? 'settlement' : null;
+    const mentions = hexMentions(w);
+    const moveWord = has(/\b(move|relocate|instead|rather|actually|mueve|muevelo|muevela|cambialo|cambiala|mejor|en vez)\b/) || (has(/\b(change|cambia)\b/) && !has(/\b(banco|bank|por|for)\b/));
+    const undoWord = has(/\b(undo|go back|take (it|that) back|revert|step back|rewind|retrocede\w*|retroceder|retrocedo|deshaz\w*|deshacer|vuelve atras|volver atras|atras|quita (eso|lo ultimo|la ultima|esa)|borra (eso|lo ultimo))\b/);
+    if (undoWord || (moveWord && mentions.length)) {
+      voice.cands = null;
+      if (!g.canUndo) { vsay(false, T('v.noundo')); return true; }
+      if (moveWord && mentions.length) {
+        const kind = kindHint || voice.lastKind;
+        if (kind) { voice.after = { kind, conds: mentions, seq: g.seq, t: Date.now() }; if (kind !== 'robber') ui.mode = kind; }
+      }
+      fire('undo'); vsay(true, T('v.undone')); return true;
+    }
+
+    // ---- cámara
     if (has(/\b(gira|girar|rota|rotar|rotate|turn)\b/) && has(/\b(izquierda|derecha|left|right)\b/)) { if (ui.b3) { ui.b3.cam.yaw += has(/izquierda|left/) ? -35 : 35; ui.b3.redraw(); } vsay(true, 'OK'); return true; }
     if (has(/\b(zoom|acerca|acercar|aleja|alejar|closer|further)\b/)) { if (ui.b3) { ui.b3.cam.zoom *= has(/aleja|alejar|further|out/) ? 0.85 : 1.2; ui.b3.redraw(); } vsay(true, 'OK'); return true; }
     if (has(/\b(plano|2d|flat)\b/)) { fire('camflat'); vsay(true, 'OK'); return true; }
     if (has(/\b(vista normal|restablecer|reset camara|reset camera)\b/)) { fire('camreset'); vsay(true, 'OK'); return true; }
 
-    // elegir a quién robar
+    // ---- elegir entre varias opciones señaladas con números
+    if (voice.cands) {
+      const C = voice.cands;
+      const yes = has(/\b(yes|yeah|yep|ok|okay|si|vale|correct|correcto|that one|esa|ese|confirm\w*|exacto|eso)\b/);
+      const ord = w.map((x) => ORD[x]).find(Boolean);
+      const label = has(/\b(number|numero|option|opcion|spot|punto|el|la|the|one)\b/);
+      const nn = nums.map((q) => q.n).find((n) => n >= 1 && n <= C.ids.length);
+      let pick;
+      if (yes && C.ids.length === 1 && !ress.length) pick = 0;
+      else if (!ress.length && ord && ord <= C.ids.length) pick = ord - 1;
+      else if (!ress.length && nn && (w.length <= 3 || has(/\b(number|numero|option|opcion|spot|punto)\b/))) pick = nn - 1;
+      if (pick !== undefined) { if (need()) return true; doPlace(C.kind, C.ids[pick]); return true; }
+      if (mentions.length) { if (need()) return true; return placeFlow(C.kind, C.conds.concat(mentions.filter((m) => !C.conds.some((c) => c.res === m.res && c.num === m.num)))); }
+    }
+
+    // ---- elegir a quién robar
     if (g.phase === 'steal' && my) {
-      const v = (g.victims || []).find((i) => { const nm = norm(nameOf(i)); return nm && t.indexOf(nm) >= 0; });
+      const v = (g.victims || []).find((i) => nameMatch(nameOf(i), t));
       if (v !== undefined) { fire('steal', { id: v }); vsay(true, nameOf(v)); return true; }
     }
-    // tirar los dados
-    if (has(/\b(tira|tirar|tiro|lanza|lanzar|dados|roll|throw)\b/) && !has(/\b(carta|cambiar|banco)\b/)) { if (need()) return true; if (g.phase !== 'roll') { vsay(false, T('v.notNow')); return true; } fire('roll'); vsay(true, T('a.roll')); return true; }
-    // terminar turno
-    if (has(/\b(termina|terminar|termino|acabar|acabo|fin|siguiente|pasar|paso|pasa|end|finish|pass|done|next)\b/) && !has(/\b(camino|poblado|ciudad)\b/)) { if (need()) return true; fire('end'); vsay(true, T('a.end')); return true; }
-    // comprar carta
-    if (has(/\b(carta|cartas|desarrollo|card|development)\b/) && has(/\b(compra|comprar|compro|saca|sacar|buy|draw|get)\b/)) { if (need()) return true; fire('buyDev'); vsay(true, T('b.dev')); return true; }
-    // jugar cartas de desarrollo
-    if (has(/\b(caballero|soldado|knight)\b/) && has(/\b(juega|jugar|juego|usa|usar|play|use)\b/)) { if (need()) return true; fire('dev', { k: 'knight' }); vsay(true, T('dev.knight')); return true; }
-    if (has(/\b(monopolio|monopoly)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'monopoly', res: ress[0].r }); vsay(true, T('dev.monopoly')); return true; }
-    if (has(/\b(abundancia|invento|plenty|harvest)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'plenty', a: ress[0].r, b: (ress[1] || ress[0]).r }); vsay(true, T('dev.plenty')); return true; }
-    if (has(/\b(carreteras|construccion de caminos|road building)\b/)) { if (need()) return true; fire('dev', { k: 'roadbuilding' }); vsay(true, T('dev.roadbuilding')); return true; }
-    // descartar
-    if (g.phase === 'discard' && g.discard[g.me] && has(/\b(descart\w*|discard|suelto|tiro)\b/)) {
+    // ---- descartar
+    if (g.phase === 'discard' && g.discard[g.me] && ress.length) {
       const cards = {}; let tot = 0;
       ress.forEach((rr) => { const pre = nums.filter((q) => q.i < rr.i).pop(); const n = pre && rr.i - pre.i <= 2 ? pre.n : 1; cards[rr.r] = (cards[rr.r] || 0) + n; tot += n; });
       if (!tot) { vsay(false, T('v.what')); return true; }
       act({ t: 'discard', cards }, ui.api.local ? g.me : undefined); vsay(true, resList(cards)); return true;
     }
-    // comerciar con el banco / ofertas
+
+    // ---- colocar o mover el ladrón describiendo el hexágono
+    if (g.phase === 'robber' && my && mentions.length) {
+      const nm = (ui.room.players || []).findIndex((p, i) => i !== g.turn && nameMatch(p.name, t));
+      if (nm >= 0) voice.stealName = { text: t, t: Date.now() };
+      return placeFlow('robber', mentions);
+    }
+    // ---- colocar piezas describiendo los hexágonos que las rodean
+    const placing = g.phase === 'setup' || g.phase === 'roadbuilding' || ((g.phase === 'main' || g.phase === 'special') && (kindHint || ui.mode));
+    if (placing && mentions.length && !has(/\b(cambia\w*|intercambia\w*|ofrece\w*|offer|swap|trade|banco|bank|recoge\w*|collect|compra\w*|buy)\b/)) {
+      if (need()) return true;
+      let kind = kindHint || ui.mode;
+      if (g.phase === 'setup') {
+        const stage = g.setup.stage === 'settlement' ? 'settlement' : 'road';
+        if (kindHint && kindHint !== stage && !(stage === 'settlement' && kindHint === 'city')) { vsay(false, T(stage === 'settlement' ? 'v.firstSettle' : 'v.firstRoad')); return true; }
+        kind = stage;
+      } else if (g.phase === 'roadbuilding') kind = 'road';
+      return placeFlow(kind, mentions);
+    }
+
+    // ---- acciones simples
+    if (has(/\b(tira\w*|lanza\w*|dados?|roll|throw|toss)\b/) && !has(/\b(carta|cartas|cambiar|banco|bank|trade|ladron|robber)\b/)) { if (need()) return true; if (g.phase !== 'roll') { vsay(false, T('v.notNow')); return true; } fire('roll'); vsay(true, T('a.roll')); return true; }
+    if (!kindHint && !mentions.length && has(/\b(termina\w*|acab\w*|fin|pasa\w*|paso|end|finish|done|pass|next player|next turn|siguiente|ya esta|that is all|thats all)\b/)) { if (need()) return true; fire('end'); vsay(true, T('a.end')); return true; }
+    if (has(/\b(carta|cartas|desarrollo|card|development)\b/) && has(/\b(compra\w*|compro|saca\w*|buy|draw|get|purchase)\b/)) { if (need()) return true; fire('buyDev'); vsay(true, T('b.dev')); return true; }
+    if (has(/\b(caballero|soldado|knight)\b/) && has(/\b(juega\w*|jugar|juego|usa\w*|play|use)\b/)) { if (need()) return true; fire('dev', { k: 'knight' }); vsay(true, T('dev.knight')); return true; }
+    if (has(/\b(monopolio|monopoly)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'monopoly', res: ress[0].r }); vsay(true, T('dev.monopoly')); return true; }
+    if (has(/\b(abundancia|invento|plenty|harvest)\b/) && ress.length) { if (need()) return true; act({ t: 'playDev', card: 'plenty', a: ress[0].r, b: (ress[1] || ress[0]).r }); vsay(true, T('dev.plenty')); return true; }
+    if (has(/\b(carreteras|construccion de caminos|road building)\b/)) { if (need()) return true; fire('dev', { k: 'roadbuilding' }); vsay(true, T('dev.roadbuilding')); return true; }
+
+    // ---- comerciar con el banco / ofertas
     const split = t.split(/\b(por|a cambio de|for|into)\b/);
-    if (split.length >= 3 && has(/\b(banco|bank|cambia|cambiar|cambio|intercambia|intercambiar|swap|trade|exchange)\b/) && !has(/\b(jugadores|players|ofrece|ofrecer)\b/)) {
-      const A = resIn(split[0].split(' '))[0], B = resIn(split.slice(2).join(' ').split(' '))[0];
+    if (split.length >= 3 && has(/\b(banco|bank|cambia\w*|cambio|intercambia\w*|swap|trade|exchange)\b/) && !has(/\b(jugadores|players|ofrece\w*|offer)\b/)) {
+      const A = resIn2(split[0].split(' '))[0], B = resIn2(split.slice(2).join(' ').split(' '))[0];
       if (A && B) { if (need()) return true; act({ t: 'bank', give: A.r, get: B.r }); vsay(true, T('res.' + A.r) + ' → ' + T('res.' + B.r)); return true; }
     }
-    if (split.length >= 3 && has(/\b(ofrece|ofrecer|ofrezco|propon\w*|offer|propose|jugadores|players)\b/)) {
-      const side = (txt) => { const ww = txt.split(' '), rs = resIn(ww), ns = numsIn(ww), o = {}; rs.forEach((rr) => { const pre = ns.filter((q) => q.i < rr.i).pop(); o[rr.r] = (o[rr.r] || 0) + (pre && rr.i - pre.i <= 2 ? pre.n : 1); }); return o; };
+    if (split.length >= 3 && has(/\b(ofrece\w*|ofrezco|propon\w*|offer|propose|jugadores|players)\b/)) {
+      const side = (txt) => { const ww = txt.split(' '), rs = resIn2(ww), ns = numsIn(ww), o = {}; rs.forEach((rr) => { const pre = ns.filter((q) => q.i < rr.i).pop(); o[rr.r] = (o[rr.r] || 0) + (pre && rr.i - pre.i <= 2 ? pre.n : 1); }); return o; };
       const give = side(split[0]), want = side(split.slice(2).join(' '));
       if (Object.keys(give).length && Object.keys(want).length) { if (need()) return true; act({ t: 'offer', give, want }); vsay(true, resList(give) + ' ⇄ ' + resList(want)); return true; }
     }
-    if (g.offer && has(/\b(acepto|aceptar|acepta|accept|yes|si)\b/) && !ui.api.local) { act({ t: 'respond', accept: true }); vsay(true, T('a.accept')); return true; }
-    if (g.offer && has(/\b(rechazo|rechazar|rechaza|decline|reject|no)\b/) && !ui.api.local) { act({ t: 'respond', accept: false }); vsay(true, T('a.decline')); return true; }
+    if (g.offer && has(/\b(acepto|acepta\w*|accept|yes|si|deal|trato)\b/) && !ui.api.local) { act({ t: 'respond', accept: true }); vsay(true, T('a.accept')); return true; }
+    if (g.offer && has(/\b(rechazo|rechaza\w*|decline|reject|no)\b/) && !ui.api.local) { act({ t: 'respond', accept: false }); vsay(true, T('a.decline')); return true; }
     if (has(/\b(comerciar|comercio|trade)\b/)) { fire('trade', { k: has(/jugadores|players/) ? 'players' : 'bank' }); vsay(true, T('a.trade')); return true; }
-    // recoger materiales de un hexágono (por su número o su recurso)
-    if (has(/\b(recoge|recoger|recojo|coger|cojo|cobra|cobrar|collect|take|grab)\b/)) {
-      const tiles = (g.pendTiles || []);
-      const T0 = g.board.tiles;
-      let pick = tiles.find((ti) => nums.some((q) => q.n === T0[ti].num) || ress.some((rr) => rr.r === T0[ti].res));
+
+    // ---- recoger materiales de un hexágono (por su número o su recurso)
+    if (has(/\b(recoge\w*|recojo|coger|cojo|cobra\w*|collect|take|grab|get)\b/)) {
+      const tiles = (g.pendTiles || []), T0 = g.board.tiles;
+      let pick = tiles.find((ti) => mentions.some((m) => (!m.res || T0[ti].res === m.res) && (!m.num || T0[ti].num === m.num)));
       if (pick === undefined && tiles.length === 1) pick = tiles[0];
-      if (pick !== undefined) { fire('collect', { id: pick }); vsay(true, T('res.' + T0[pick].res) + ' ' + (T0[pick].num || '')); return true; }
+      if (pick !== undefined) { fire('collect', { id: pick }); vsay(true, (EMO[T0[pick].res] || '') + (T0[pick].num || '')); return true; }
       vsay(false, T('collect.none')); return true;
     }
-    // modos de construcción
-    let kind = null;
-    if (has(/\b(camino|caminos|carretera|calle|road)\b/)) kind = 'road';
-    else if (has(/\b(poblado|pueblo|casa|asentamiento|settlement|house|village)\b/)) kind = 'settlement';
-    else if (has(/\b(ciudad|city|town)\b/)) kind = 'city';
-    const num = nums.length ? nums[nums.length - 1].n : null;
-    const inSetup = g.phase === 'setup' || g.phase === 'roadbuilding';
-    if (kind && !inSetup) {
+    // ---- modo de construcción sin lugar: se enseñan los puntos legales
+    if (kindHint && !mentions.length) {
       if (need()) return true;
+      if (g.phase === 'setup' || g.phase === 'roadbuilding') { vsay(true, T('v.describe')); return true; }
       if (g.phase !== 'main' && g.phase !== 'special') { vsay(false, T('v.notNow')); return true; }
-      if (ui.mode !== kind) { ui.mode = kind; ui.api.rerender(); }
-      vsay(true, T('b.' + kind));
-      if (num === null) return true;
-    }
-    // elegir un punto numerado del tablero
-    if (num !== null) {
-      const sp = ui.spots;
-      if (!sp || !sp.ids.length) { vsay(false, T('v.nospot')); return true; }
-      const id = sp.ids[num - 1];
-      if (id === undefined) { vsay(false, T('v.badnum', { n: num })); return true; }
-      fire(sp.kind === 'road' ? 'spot-e' : sp.kind === 'robber' ? 'spot-t' : 'spot-v', { id });
-      vsay(true, '#' + num); return true;
+      ui.mode = kindHint; ui.api.rerender(); vsay(true, T('v.describe')); return true;
     }
     return false;
   }
@@ -505,7 +687,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     if (!SR) { vsay(false, T('v.unsupported')); return; }
     if (voice.on) return;
     const rec = new SR();
-    rec.lang = root.I18N.lang === 'en' ? 'en-US' : 'es-ES';
+    rec.lang = voice.lang === 'en' ? 'en-US' : 'es-ES';
     rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 3;
     rec.onresult = (ev) => {
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -528,7 +710,7 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     ui.api.rerender();
   }
   function stopVoice() {
-    voice.on = false;
+    voice.on = false; voice.cands = null;
     try { voice.rec && voice.rec.stop(); } catch (e) {}
     voice.rec = null; voice.msg = ''; voice.last = '';
     renderVoice(); ui.api.rerender();
@@ -539,9 +721,21 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
     el.className = 'on';
     el.innerHTML = `<span class="vmic">🎤</span><span class="vmsg ${voice.ok ? '' : 'bad'}">${esc(voice.msg || T('v.listening'))}</span><button data-a="vhelp" title="${T('v.help')}">?</button>`;
   }
+  // La ayuda de voz está siempre en inglés
+  const VOICE_HELP = `<p>Just talk. There is no fixed phrase to learn: say what you want in your own words, in Spanish or English.</p>
+<ul>
+<li><b>Simple things:</b> “roll the dice”, “I'm done, next player”, “pause the game”, “resume”, “collect the 8 of ore”, “buy a card”, “play the knight”.</li>
+<li><b>Placing pieces — describe the hexes around the spot:</b> “put a settlement where the 4 of wheat, the 8 of ore and the 10 of wool meet”. You can also say just the numbers (“settlement at 4, 8 and 10”) or just the terrains.</li>
+<li><b>Roads:</b> “road between the 6 of wood and the 3 of brick”. <b>Cities:</b> “upgrade the settlement next to the 9 of ore”.</li>
+<li><b>Robber:</b> “move the robber to the 8 of ore and steal from Ana”.</li>
+<li><b>If it is ambiguous</b> numbers appear on the candidate spots: say the number (“the second one”), or add more detail (“the one touching the 10 of wool”).</li>
+<li><b>Changed your mind?</b> “Undo”, “go back”, or “move it to the 5 of wood and the 9 of wheat”.</li>
+<li><b>Trading:</b> “swap wood for grain with the bank”, “offer two wool for one ore”.</li>
+<li><b>Other:</b> “what should I do?” (reads the hint aloud), “rules”, “rotate left”, “zoom in”.</li>
+</ul>
+<p class="sub">Voice is sent to your browser's speech service, so it needs Chrome or Edge, internet and microphone permission.</p>`;
   function voiceHelp() {
-    const w = voice.wake ? `<p class="sub">${T('v.wake.d')}</p>` : '';
-    return modal(`<h2>🎤 ${T('v.title')}</h2>${w}<div class="vhelp">${T('v.cmds')}</div><p class="sub">${T('v.note')}</p>`, { cls: 'rules' });
+    return modal(`<h2>🎤 Voice control</h2><div class="vhelp">${VOICE_HELP}</div>`, { cls: 'rules' });
   }
 
   // ---------- eventos ----------
@@ -569,6 +763,10 @@ ${ui.api.local ? '' : `<div class="setrow"><span>${T('set.auto')}<small>${T(can 
       case 'vtoggle': if (voice.on) stopVoice(); else startVoice(); return;
       case 'vwake': voice.wake = k === '1'; try { localStorage.setItem('mesa-wake', k); } catch (x) {} rerender(); return;
       case 'vhelp': ui.modal = 'vhelp'; rerender(); return;
+      case 'undo': act({ t: 'undo' }); return;
+      case 'pause': act({ t: 'pause', v: true }); return;
+      case 'resume': act({ t: 'pause', v: false }); return;
+      case 'vlang': voice.lang = k === 'en' ? 'en' : 'es'; try { localStorage.setItem('mesa-vlang', voice.lang); } catch (x) {} if (voice.on) { stopVoice(); startVoice(); } else rerender(); return;
       case 'eye': ui.reveal = !ui.reveal; rerender(); return;
       case 'popmin': ui.popMin = true; ui.guideKey = ''; rerender(); return;
       case 'roll': if (myTurn() && g.phase === 'roll') act({ t: 'roll' }); return;

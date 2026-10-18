@@ -16,6 +16,7 @@
   }
 
   // Devuelve una clave de error o null
+  MesaRoom.COLORS = COLORS;
   MesaRoom.prototype.add = function (id, name) {
     if (this.started) return 'net.started';
     if (this.players.length >= (MAX_PLAYERS[this.game] || 4)) return 'net.full';
@@ -73,13 +74,47 @@
       if (id === this.hostId && this.engine.setAuto) this.engine.setAuto(!!m.v);
       return null;
     }
-    return this.engine.act(id, m);
+    // Pausa: solo el anfitrión (o cualquiera en una partida local)
+    if (m.t === 'pause') {
+      if (id !== this.hostId && !this.local) return 'e.hostonly';
+      this.paused = !!m.v;
+      return null;
+    }
+    // Deshacer: devuelve el estado a justo antes de la última pieza colocada
+    if (m.t === 'undo') {
+      const top = (this.undoStack || []).slice(-1)[0];
+      if (!top || this.paused) return 'e.noundo';
+      if (!this.local && top.pid !== id) return 'e.noundo';
+      this.undoStack.pop();
+      const cur = this.engine.s.seq;
+      this.engine.s = JSON.parse(top.s);
+      this.engine.s.seq = cur; // el contador no retrocede: así los clientes detectan el cambio
+      this.engine.log('undo', { p: this.engine.ids.indexOf(top.pid) });
+      return null;
+    }
+    if (this.paused) return 'e.paused';
+    if (m.t === 'build') {
+      const before = JSON.stringify(this.engine.s);
+      const err = this.engine.act(id, m);
+      if (!err) { (this.undoStack = this.undoStack || []).push({ s: before, pid: id }); if (this.undoStack.length > 12) this.undoStack.shift(); }
+      return err;
+    }
+    const err2 = this.engine.act(id, m);
+    if (!err2) this.undoStack = []; // tirar dados, comerciar, robar... ya no se puede volver atrás
+    return err2;
+  };
+
+  MesaRoom.prototype.decorate = function (g, pid) {
+    const top = (this.undoStack || []).slice(-1)[0];
+    g.canUndo = !!top && !this.paused && (this.local || top.pid === pid);
+    g.paused = !!this.paused;
+    return g;
   };
 
   MesaRoom.prototype.view = function (pid) {
     return {
       code: this.code, game: this.game, hostId: this.hostId, started: this.started, aborted: this.aborted,
-      players: this.players, g: this.engine ? this.engine.view(pid) : null,
+      players: this.players, g: this.engine ? this.decorate(this.engine.view(pid), pid) : null, paused: !!this.paused,
     };
   };
 
