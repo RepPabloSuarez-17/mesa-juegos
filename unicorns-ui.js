@@ -10,7 +10,7 @@
       pickTarget: 'Elige a quién le pones la maldición:', neighAsk: '{p} juega «{c}». ¿Relinchas?', noNeigh: 'No relinchar', neighBtn: 'Relinchar con',
       pickStable: 'Elige una carta de un establo (brillan)', pickDiscard: 'Elige una carta del descarte', pickDeck: 'Elige una carta del mazo', peek: 'Quédate con una; el resto va al fondo del mazo',
       skip: 'No hacer nada', discardN: 'Descarta {n} carta(s) de tu mano', giveN: 'Dale una carta a {p}', limitN: 'Tienes demasiadas cartas: descarta {n}', confirm: 'Confirmar', pickPlayer: 'Elige un jugador',
-      cardsIn: '{n} cartas', rules: 'Reglas', leave: 'Salir', close: 'Cerrar', viewDiscard: 'Ver descarte', empty: 'Vacío', winTitle: '¡{p} gana!', winU: 'Ha reunido sus unicornios.', winD: 'Se acabó el mazo: gana quien tiene más unicornios.', tie: '(empate, gana el primero en orden)',
+      cards: 'Cartas', cardsIn: '{n} cartas', rules: 'Reglas', leave: 'Salir', close: 'Cerrar', viewDiscard: 'Ver descarte', empty: 'Vacío', winTitle: '¡{p} gana!', winU: 'Ha reunido sus unicornios.', winD: 'Se acabó el mazo: gana quien tiene más unicornios.', tie: '(empate, gana el primero en orden)',
       veil: 'Pasa el dispositivo a', veilGo: 'Toca para ver tus cartas', offline: 'desconectado', neighWin: 'Cadena de relinchos', playing: 'Jugada',
       log: 'Historial', nothing: 'Sin objetivo válido',
       rulesText: '<p><b>Objetivo:</b> ser el primero en tener <b>7 unicornios</b> en tu establo (<b>6</b> si sois 6 o más jugadores).</p><p><b>Tu turno:</b> 1) efectos de inicio de turno · 2) robas 1 carta · 3) <b>una acción</b>: jugar una carta de tu mano <i>o</i> robar otra · 4) si tienes más de 7 cartas, descartas.</p><p><b>Tipos:</b> Unicornios (al establo; los mágicos tienen poder), Magia (se resuelve y se descarta), Mejoras (a tu establo), Maldiciones (al establo de otro jugador), Instantáneas (solo como respuesta).</p><p><b>Relincho 🐴:</b> cuando alguien juega una carta, quien tenga un Relincho puede jugarlo y la carta se descarta sin efecto. Un Relincho puede ser relinchado (la jugada entonces se salva). El Super Relincho no se puede relinchar.</p><p><b>Bebés 🐣:</b> todos empiezan con uno; cuentan como unicornios y, si salen del establo, vuelven a la guardería.</p><p><b>Mazo agotado:</b> gana quien tenga más unicornios.</p><p class="hint">El mazo es original (cartas y nombres propios), con las mismas reglas básicas que el juego comercial.</p>',
@@ -23,7 +23,7 @@
       pickTarget: 'Choose who gets the downgrade:', neighAsk: '{p} plays "{c}". Neigh?', noNeigh: 'Let it pass', neighBtn: 'Neigh with',
       pickStable: 'Pick a card in a stable (highlighted)', pickDiscard: 'Pick a card from the discard pile', pickDeck: 'Pick a card from the deck', peek: 'Keep one; the rest go to the bottom of the deck',
       skip: 'Do nothing', discardN: 'Discard {n} card(s) from your hand', giveN: 'Give a card to {p}', limitN: 'Too many cards: discard {n}', confirm: 'Confirm', pickPlayer: 'Choose a player',
-      cardsIn: '{n} cards', rules: 'Rules', leave: 'Leave', close: 'Close', viewDiscard: 'View discard', empty: 'Empty', winTitle: '{p} wins!', winU: 'Collected enough unicorns.', winD: 'Deck ran out: most unicorns wins.', tie: '(tie, first in order wins)',
+      cards: 'Cards', cardsIn: '{n} cards', rules: 'Rules', leave: 'Leave', close: 'Close', viewDiscard: 'View discard', empty: 'Empty', winTitle: '{p} wins!', winU: 'Collected enough unicorns.', winD: 'Deck ran out: most unicorns wins.', tie: '(tie, first in order wins)',
       veil: 'Pass the device to', veilGo: 'Tap to see your cards', offline: 'offline', neighWin: 'Neigh chain', playing: 'Play',
       log: 'History', nothing: 'No valid target',
       rulesText: '<p><b>Goal:</b> be the first to have <b>7 unicorns</b> in your stable (<b>6</b> with 6+ players).</p><p><b>Your turn:</b> 1) start-of-turn effects · 2) draw 1 card · 3) <b>one action</b>: play a card from your hand <i>or</i> draw another · 4) discard down to 7 cards.</p><p><b>Types:</b> Unicorns (to your stable; magical ones have powers), Magic (resolves then is discarded), Upgrades (to your stable), Downgrades (to another player\'s stable), Instants (only as a reaction).</p><p><b>Neigh 🐴:</b> when someone plays a card, anyone holding a Neigh may play it and the card is discarded with no effect. A Neigh can be Neighed (the play is saved). Super Neigh cannot be Neighed.</p><p><b>Babies 🐣:</b> everyone starts with one; they count as unicorns and return to the nursery when they leave a stable.</p><p><b>Deck runs out:</b> most unicorns wins.</p><p class="hint">The deck is original (own cards and names), with the same basic rules as the commercial game.</p>',
@@ -57,13 +57,13 @@
     // ----- tarjetas
     const card = (id, cls, extra) => {
       const k = keyOf(id), d = C[k]; if (!d) return `<div class="uc back ${cls || ''}"></div>`;
-      return `<div class="uc t-${d.type} ${cls || ''}" data-id="${id}" ${extra || ''}><div class="uc-e">${d.emoji}</div><div class="uc-n">${esc(d.name[L])}</div><div class="uc-t">${esc(d.text[L])}</div><div class="uc-k">${tt(d.type)}</div></div>`;
+      return `<div class="uc t-${d.type} ${cls || ''}" data-id="${id}" ${extra || ''}><div class="uc-e"><span class="uc-u">🦄</span><span class="uc-a">${d.emoji}</span></div><div class="uc-n">${esc(d.name[L])}</div><div class="uc-t">${esc(d.text[L])}</div><div class="uc-k">${tt(d.type)}</div></div>`;
     };
     const opts = pd && pd.opts ? pd.opts : [];
     const stablePick = mine && pd.kind === 'pick' && pd.zone === 'stable';
     const stableHtml = (j, big) => {
       const p = g.pl[j];
-      return p.stable.length ? p.stable.map((id) => card(id, (big ? '' : 'sm ') + (stablePick && opts.includes(id) ? 'glow' : (stablePick ? 'dim' : '')), `data-a="${stablePick && opts.includes(id) ? 'pick' : 'zoom'}"`)).join('') : `<i class="hint">${tt('empty')}</i>`;
+      return p.stable.length ? p.stable.map((id) => card(id, (big ? '' : 'md ') + (stablePick && opts.includes(id) ? 'glow' : (stablePick ? 'dim' : '')), `data-a="${stablePick && opts.includes(id) ? 'pick' : 'zoom'}"`)).join('') : `<i class="hint">${tt('empty')}</i>`;
     };
 
     // ----- paneles de jugadores
@@ -138,6 +138,12 @@
     else if (mine && pd.kind === 'peek') modal = `<div class="umodal"><div class="mbox"><h3>${esc(banner)}</h3>${grid(opts, 'pick', false)}</div></div>`;
     else if (S.disc) modal = `<div class="umodal"><div class="mbox"><h3>${tt('discard')} (${g.discard.length})</h3>${g.discard.length ? `<div class="mgrid">${g.discard.slice().reverse().map((id) => card(id, 'sm', 'data-a="zoom"')).join('')}</div>` : `<p>${tt('empty')}</p>`}<div class="row"><button class="btn" data-a="closed">${tt('close')}</button></div></div></div>`;
     else if (S.zoom) modal = `<div class="umodal" data-a="closez"><div class="mbox zoom">${card(S.zoom, 'big')}<div class="row"><button class="btn" data-a="closez">${tt('close')}</button></div></div></div>`;
+    if (S.logm) modal = `<div class="umodal"><div class="mbox"><h3>📜 ${tt('log')}</h3><ul class="ulog2">${logHtml}</ul><div class="row"><button class="btn" data-a="closel">${tt('close')}</button></div></div></div>`;
+    if (S.catm) {
+      const D = root.UnicornCards.DECK, order = ['baby', 'basic', 'magical', 'magic', 'upgrade', 'downgrade', 'instant'];
+      const ks = Object.keys(C).sort((a, b) => order.indexOf(C[a].type) - order.indexOf(C[b].type));
+      modal = `<div class="umodal"><div class="mbox cat"><h3>🃏 ${tt('cards')}</h3><div class="mgrid">${ks.map((k) => { const d = C[k]; return `<div class="cw">${`<div class="uc t-${d.type}"><div class="uc-e"><span class="uc-u">🦄</span><span class="uc-a">${d.emoji}</span></div><div class="uc-n">${esc(d.name[L])}</div><div class="uc-t">${esc(d.text[L])}</div><div class="uc-k">${tt(d.type)}</div></div>`}<small>×${d.type === 'baby' ? 1 : D[k] || 0}</small></div>`; }).join('')}</div><div class="row"><button class="btn" data-a="closec">${tt('close')}</button></div></div></div>`;
+    }
     if (S.rules) modal = `<div class="umodal"><div class="mbox rules"><h3>📖 ${tt('rules')}</h3>${tt('rulesText')}<div class="row"><button class="btn" data-a="closer">${tt('close')}</button></div></div></div>`;
     if (g.winner) {
       const w = pinfo(g.winner);
@@ -150,14 +156,13 @@
 
     const logHtml = g.log.slice().reverse().map((e) => `<li class="l-${e[0]}">${esc(fmt(e))}</li>`).join('');
     main.innerHTML = `<div id="uu" class="${veil ? 'veiled' : ''}">
-      <div class="utop"><b>🦄 Unstable Unicorns</b><span class="room">${esc(room.code)}</span><span class="sp"></span><span class="turnpill" style="--c:${pinfo(g.turn).color}">${esc(tt('turnOf', { p: turnName }))}</span><button class="btn" data-a="rules">📖 ${tt('rules')}</button><button class="btn" data-a="leave">${tt('leave')}</button></div>
-      <div class="ugrid"><div class="ucol">
+      <div class="utop"><b>🦄 Unstable Unicorns</b><span class="room">${esc(room.code)}</span><span class="sp"></span><span class="turnpill" style="--c:${pinfo(g.turn).color}">${esc(tt('turnOf', { p: turnName }))}</span><button class="btn" data-a="cat">🃏 ${tt('cards')}</button><button class="btn" data-a="logb">📜 ${tt('log')}</button><button class="btn" data-a="rules">📖 ${tt('rules')}</button><button class="btn" data-a="leave">${tt('leave')}</button></div>
+      <div class="ucol">
         <div class="opps">${opp}</div>
-        ${center}
-        ${banner ? `<div class="ubanner ${mine ? 'mine' : ''}"><span>${esc(banner)}</span><div class="bb">${btns}</div></div>` : ''}
+        <div class="mid">${center}${banner ? `<div class="upop ${mine ? 'mine' : ''}"><div class="pt">${mine ? '👉 ' : '⏳ '}${esc(banner)}</div><div class="bb">${btns}</div></div>` : ''}</div>
         ${panel(meI)}
         <div class="handbox"><h4>${tt('hand')} · ${g.pl[meI].handN}/${g.pl[meI].limit}</h4><div class="hand">${hand}</div></div>
-      </div><aside class="ulog"><h4>${tt('log')}</h4><ul>${logHtml}</ul></aside></div>
+      </div>
       ${S.ann ? `<div class="uann">${esc(S.ann)}</div>` : ''}${modal}${veil}</div>`;
 
     // ----- eventos
@@ -183,6 +188,10 @@
         case 'closez': S.zoom = null; api.rerender(); break;
         case 'disc': S.disc = true; api.rerender(); break;
         case 'closed': S.disc = false; api.rerender(); break;
+        case 'cat': S.catm = true; api.rerender(); break;
+        case 'closec': S.catm = false; api.rerender(); break;
+        case 'logb': S.logm = true; api.rerender(); break;
+        case 'closel': S.logm = false; api.rerender(); break;
         case 'rules': S.rules = true; api.rerender(); break;
         case 'closer': S.rules = false; api.rerender(); break;
         case 'ack': S.ackWho = myId; api.rerender(); break;
