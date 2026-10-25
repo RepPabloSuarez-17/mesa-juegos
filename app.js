@@ -24,8 +24,9 @@
     toast.t = setTimeout(() => t.classList.remove('show'), 2800);
   }
 
-  const makeEngine = (ids, game) => (game === 'catan2' ? new CatanEngine.CatanGame(ids, CatanBoard.generateBoard(ids.length)) : new CatanSimple.Game(ids, CatanBoard.generateBoard()));
-  const newRoom = (code, game) => new MesaRoom(code, game, { makeEngine, restoreEngine: (e) => { const g = new CatanEngine.CatanGame(e.ids, e.board); g.s = e.s; return g; } });
+  const makeEngine = (ids, game) => game === 'unicorns' ? new UnicornEngine.Game(ids) : (game === 'catan2' ? new CatanEngine.CatanGame(ids, CatanBoard.generateBoard(ids.length)) : new CatanSimple.Game(ids, CatanBoard.generateBoard()));
+  const restoreEngine = (e, game) => { if (game === 'unicorns') return UnicornEngine.Game.restore(e.ids, e.s); const g = new CatanEngine.CatanGame(e.ids, e.board); g.s = e.s; return g; };
+  const newRoom = (code, game) => new MesaRoom(code, game, { makeEngine, restoreEngine });
 
   // ---------- Red (PeerJS) ----------
   function randomCode() {
@@ -35,6 +36,7 @@
 
   // Partida local: todos los jugadores en este dispositivo; la vista es la del jugador que debe actuar.
   function actingId(room) {
+    if (room.game === 'unicorns') return room.engine.actor();
     const s = room.engine.s;
     if (s.phase === 'discard') return room.players[+Object.keys(s.discard)[0]].id;
     return room.players[s.turn].id;
@@ -54,7 +56,6 @@
     } catch (e) { return net.cidMem || (net.cidMem = Math.random().toString(36).slice(2, 12)); }
   }
   const BEAT = params.get('fastnet') ? 1000 : 4000, DEAD = params.get('fastnet') ? 4000 : 14000;
-  const restoreEngine = (e) => { const g = new CatanEngine.CatanGame(e.ids, e.board); g.s = e.s; return g; };
   const deps = { makeEngine, restoreEngine };
 
   function toastRaw(msg) {
@@ -68,7 +69,7 @@
   function saveHost() {
     const room = net.room;
     if (net.role !== 'host' || !room || !room.started || !room.engine) return;
-    if (room.engine.s.phase === 'over') { lsDel(HOSTSAVE); lsDel(SESS); return; }
+    if (room.engine.s.phase === 'over' || room.engine.s.winner) { lsDel(HOSTSAVE); lsDel(SESS); return; }
     lsSet(SESS, { role: 'host', game: room.game, code: room.code, t: Date.now() });
     clearTimeout(net.saveT);
     net.saveT = setTimeout(() => { const sn = room.snapshot(); if (sn) lsSet(HOSTSAVE, { t: Date.now(), snap: sn }); }, 500);
@@ -349,8 +350,9 @@
     renderMenu();
     trackPresence(state.room);
     renderBanner();
-    const r = state.room, playing = !!(r && r.started && r.g), full = playing && r.game === 'catan2';
+    const r = state.room, playing = !!(r && r.started && r.g), full = playing && (r.game === 'catan2' || r.game === 'unicorns');
     if (full !== inGame) { inGame = full; $('#sidebar').classList.toggle('closed', full); }
+    if (full && r.game === 'unicorns') return UnicornUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local', privacy: net.privacy, isHost: r.hostId === state.myId });
     if (full) return CatanUI.update(main, r, { send, leave, rerender: render, local: net.role === 'local', privacy: net.privacy, isHost: r.hostId === state.myId });
     if (playing) return CatanSimple.render(main, r, { send, leave });
     if (r) return renderWaiting();
@@ -372,7 +374,7 @@
       <div class="row"><input id="code" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" value="${esc(params.get('sala') || '')}"><button class="btn" id="join">${T('lobby.join')}</button></div>
       <p class="hint">${T('lobby.host')}</p>
       ${g.local ? `<hr><p style="margin-bottom:4px"><b>🖥️ ${T('lobby.local')}</b></p><p class="hint" style="margin-top:0">${T('lobby.local.d')}</p>
-      <div class="row"><select id="nloc"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select><span>${T('lobby.localN')}</span></div>
+      <div class="row"><select id="nloc">${Array.from({ length: (g.max || 6) - 1 }, (_, k) => `<option${k + 2 === 4 ? ' selected' : ''}>${k + 2}</option>`).join('')}</select><span>${T('lobby.localN')}</span></div>
       <div id="locnames"></div>
       <label class="chk"><input type="checkbox" id="locpriv" checked> ${T('lobby.local.priv')}</label>
       <div class="row"><button class="btn alt" id="local">${T('lobby.localGo')}</button></div>` : ''}

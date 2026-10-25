@@ -3,5 +3,5 @@
 window.GAMES = [
   { id: 'catan2', name: { es: 'Catán completo', en: 'Catan full' }, emoji: '🏰', ready: true, descKey: 'catan2.desc', local: true },
   { id: 'kittens', name: { es: 'Exploding Kittens', en: 'Exploding Kittens' }, emoji: '🐱', ready: false, descKey: 'soon.desc' },
-  { id: 'unicorns', name: { es: 'Unstable Unicorns', en: 'Unstable Unicorns' }, emoji: '🦄', ready: false, descKey: 'soon.desc' },
+  { id: 'unicorns', name: { es: 'Unstable Unicorns', en: 'Unstable Unicorns' }, emoji: '🦄', ready: true, descKey: 'unicorns.desc', local: true, max: 8 },
 ];

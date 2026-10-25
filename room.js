@@ -1,7 +1,7 @@
 // Lógica de una sala. La ejecuta SOLO el navegador del anfitrión (es el "servidor").
 (function (root) {
-  const COLORS = ['#d8402f', '#3a78d6', '#f0a02a', '#ece6d6', '#3fa361', '#9b59b6'];
-  const MAX_PLAYERS = { catan: 6, catan2: 6 };
+  const COLORS = ['#d8402f', '#3a78d6', '#f0a02a', '#ece6d6', '#3fa361', '#9b59b6', '#17a2b8', '#e86fa8'];
+  const MAX_PLAYERS = { catan: 6, catan2: 6, unicorns: 8 };
   const cleanName = (n) => String(n || 'Jugador').replace(/[<>]/g, '').trim().slice(0, 20) || 'Jugador';
 
   function MesaRoom(code, game, deps) {
@@ -55,7 +55,7 @@
     const r = new MesaRoom(snap.code, snap.game, deps);
     r.hostId = snap.hostId; r.started = true;
     r.players = snap.players.map((p) => Object.assign({}, p, { online: p.id === snap.hostId }));
-    r.engine = deps.restoreEngine(snap.engine);
+    r.engine = deps.restoreEngine(snap.engine, snap.game);
     return r;
   };
 
