@@ -1,12 +1,12 @@
 /* ---------- Unstable Unicorns (juego original, cartas propias) ---------- */
 #uu { min-height: 100%; padding: 10px 12px 24px; color: #fff; background: radial-gradient(circle at 20% 0%, #5b3a8c, #2b1850 55%, #170c30); position: relative; font-family: system-ui, "Segoe UI", sans-serif; }
-#uu.veiled .ugrid { filter: blur(14px); pointer-events: none; }
+#uu.veiled .ucol { filter: blur(14px); pointer-events: none; }
 #uu .sp { flex: 1; }
 .utop { padding-left: 44px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
 .utop b { font-size: 20px; }
 .utop .room { background: #ffffff22; padding: 3px 10px; border-radius: 8px; letter-spacing: 2px; font-weight: 700; }
 .turnpill { border: 2px solid var(--c); padding: 5px 12px; border-radius: 99px; font-weight: 700; background: #0004; }
-.ugrid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 12px; }
+.ugrid { display: block; }
 .ucol { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .opps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
 .up { background: #ffffff12; border: 2px solid #ffffff22; border-radius: 12px; padding: 8px; min-width: 0; }
@@ -65,3 +65,22 @@
 .uann { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 70; background: #000c; border: 3px solid #d9a441; color: #fff; padding: 16px 28px; border-radius: 18px; font-size: clamp(20px, 4vw, 34px); font-weight: 800; text-align: center; pointer-events: none; animation: ann 2.6s forwards; max-width: 90vw; }
 @keyframes ann { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (max-width: 900px) { .ugrid { grid-template-columns: 1fr; } .ulog { max-height: 200px; } .uc { width: 100px; min-height: 148px; } .uc.big { width: 210px; } }
+
+/* v2: tableros grandes, sin columnas laterales, aviso central */
+.uc-e { position: relative; display: flex; align-items: center; justify-content: center; }
+.uc-u { font-size: 40px; } .uc-a { position: absolute; right: -2px; bottom: -4px; font-size: 18px; filter: drop-shadow(0 1px 2px #0008); }
+.uc.sm .uc-u { font-size: 22px; } .uc.sm .uc-a { font-size: 11px; } .uc.big .uc-u { font-size: 80px; } .uc.big .uc-a { font-size: 36px; }
+.uc.md { width: 96px; min-height: 132px; padding: 4px; } .uc.md .uc-n { font-size: 11.5px; } .uc.md .uc-t { display: none; } .uc.md .uc-u { font-size: 34px; } .uc.md .uc-a { font-size: 15px; }
+.uc.sm { width: 62px; min-height: 84px; } .uc.sm .uc-n { font-size: 9px; }
+.opps { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.up { padding: 10px; } .up .stable { gap: 7px; }
+.mid { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+.mid .center { flex: 0 1 auto; padding: 6px 10px; gap: 10px; } .mid .center .pile small { font-size: 10px; }
+.upop { flex: 1 1 360px; background: #0006; border: 2px solid #fff3; border-radius: 16px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: center; text-align: center; min-width: 260px; }
+.upop .pt { font-size: clamp(17px, 2.2vw, 26px); font-weight: 800; }
+.upop .bb { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.upop.mine { background: #d9a441; color: #2b1d12; border-color: #fff; box-shadow: 0 0 26px #ffd45caa; animation: pop .5s; }
+@keyframes pop { from { transform: scale(.92); } to { transform: scale(1); } }
+.up.me .stable.mine { min-height: 170px; }
+.ulog2 { list-style: none; padding: 0; margin: 0; font-size: 14px; display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow: auto; }
+.mbox.cat { max-width: 1000px; } .cw { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; }
